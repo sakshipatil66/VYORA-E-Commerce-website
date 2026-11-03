@@ -34,38 +34,38 @@ export const FlashSaleSection: React.FC = () => {
     .slice(0, 4);
 
   return (
-    <section className="bg-[#F5EDE4] border-y border-[#E5D7C9] py-14 sm:py-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="bg-[#F5EDE4] border-y border-[#E5D7C9] vyora-section">
+      <div className="vyora-container">
         {/* Header & Tabular Countdown */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.2 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-          className="flex flex-col md:flex-row md:items-end justify-between gap-5 mb-10"
+          className="flex flex-col md:flex-row md:items-end justify-between gap-5 mb-8 sm:mb-10"
         >
           <div>
-            <div className="flex items-center gap-2 text-[11px] sm:text-xs font-semibold uppercase tracking-[0.22em] text-[#7A1438]">
-              <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+            <div className="flex flex-wrap items-center gap-2 typo-eyebrow text-[#7A1438]">
+              <Sparkles className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
               <span>Seasonal Guild Privileges</span>
               <span aria-hidden="true">·</span>
               <span>Up to 44% Off</span>
             </div>
-            <h2 className="font-serif text-2xl sm:text-4xl font-bold text-neutral-900 mt-1.5">
+            <h2 className="typo-h2 text-neutral-900 mt-1.5">
               Curator’s Limited Vault
             </h2>
-            <p className="text-xs sm:text-sm text-neutral-600 mt-1 max-w-xl">
+            <p className="typo-body text-neutral-600 mt-1.5 max-w-xl">
               Small-batch allocations across Chanderi couture, Hyderabadi jhumkas, smart audio, and carved rosewood decor.
             </p>
           </div>
 
           {/* Tabular Countdown Clock */}
-          <div className="flex items-center gap-3 bg-white px-4 py-3 rounded-xl border border-[#E5D7C9] shadow-2xs shrink-0 self-start md:self-auto">
-            <div className="flex items-center gap-1.5 text-xs text-neutral-600 font-medium">
+          <div className="flex flex-wrap items-center gap-3 bg-white px-4 py-3 rounded-xl border border-[#E5D7C9] shadow-2xs shrink-0 self-start md:self-auto">
+            <div className="flex items-center gap-1.5 typo-body-sm text-neutral-600 font-medium">
               <Timer className="w-4 h-4 text-[#7A1438]" />
               <span>Window closes in</span>
             </div>
-            <div className="flex items-center gap-1.5 font-mono tabular-nums text-xs font-bold text-[#380811]">
+            <div className="flex items-center gap-1.5 typo-tabular typo-body-sm font-bold text-[#380811]">
               <span className="bg-[#FAF7F5] border border-[#E8DDD3] px-2.5 py-1 rounded-md">
                 {String(timeLeft.hours).padStart(2, '0')}h
               </span>
@@ -82,7 +82,7 @@ export const FlashSaleSection: React.FC = () => {
         </motion.div>
 
         {/* Product Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
           {flashProducts.map((prod, idx) => (
             <motion.div
               key={prod.id}
@@ -104,7 +104,7 @@ export const FlashSaleSection: React.FC = () => {
               setActivePage('offers');
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
-            className="inline-flex items-center gap-2 py-3 px-7 text-xs sm:text-sm font-semibold text-[#380811] hover:text-white bg-white hover:bg-[#4A0E17] rounded-full border border-[#D8C7B8] hover:border-[#4A0E17] shadow-2xs transition-all duration-300 cursor-pointer"
+            className="inline-flex items-center gap-2 min-h-11 py-3 px-7 typo-btn text-[#380811] hover:text-white bg-white hover:bg-[#4A0E17] rounded-full border border-[#D8C7B8] hover:border-[#4A0E17] shadow-2xs transition-all duration-300 cursor-pointer"
           >
             <span>Explore All Festive Privileges & Coupons</span>
             <ArrowRight className="w-4 h-4" />

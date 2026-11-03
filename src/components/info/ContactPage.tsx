@@ -19,16 +19,16 @@ export const ContactPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div className="vyora-container vyora-page max-w-5xl">
       {/* Header */}
-      <div className="text-center max-w-2xl mx-auto mb-12">
-        <p className="text-xs font-semibold uppercase tracking-widest text-[#7A1438]">
+      <div className="text-center max-w-2xl mx-auto mb-10 sm:mb-12">
+        <p className="typo-eyebrow text-[#7A1438]">
           Atelier Concierge
         </p>
-        <h1 className="font-serif text-3xl sm:text-4xl font-bold text-neutral-900 mt-1">
+        <h1 className="typo-h1 text-neutral-900 mt-1">
           We Are Here to Assist You
         </h1>
-        <p className="text-xs sm:text-sm text-neutral-500 mt-2">
+        <p className="typo-subtitle text-neutral-500 mt-2">
           From bespoke multi-category consultations to consignment dispatch updates from Pune, Maharashtra, India, our concierge team is at your service.
         </p>
       </div>
@@ -37,39 +37,39 @@ export const ContactPage: React.FC = () => {
         {/* Contact Information (5 cols) */}
         <div className="lg:col-span-5 space-y-6">
           <div className="bg-white p-6 rounded-2xl border border-[#EBE4DD] shadow-2xs space-y-6">
-            <h3 className="font-serif text-lg font-bold text-neutral-900">
+            <h3 className="typo-h3 text-neutral-900">
               Concierge & Location Details
             </h3>
 
-            <div className="space-y-5 text-xs">
+            <div className="space-y-5 typo-body-sm">
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-full bg-[#FAF2EB] text-[#7A1438] flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-full bg-[#FAF2EB] text-[#7A1438] flex items-center justify-center shrink-0">
                   <MapPin className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-neutral-900">Primary Marketplace Location</h4>
+                  <h4 className="typo-card-title text-neutral-900">Primary Marketplace Location</h4>
                   <p className="text-[#4A0E17] font-semibold mt-0.5">
                     Pune, Maharashtra, India
                   </p>
-                  <p className="text-neutral-500 mt-0.5 leading-relaxed">
+                  <p className="text-neutral-500 mt-0.5">
                     Default shopping & priority dispatch center serving patrons across India.
                   </p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-full bg-[#FAF2EB] text-[#7A1438] flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-full bg-[#FAF2EB] text-[#7A1438] flex items-center justify-center shrink-0">
                   <Truck className="w-4 h-4 text-emerald-700" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-neutral-900">Your Active Delivery Location</h4>
+                  <h4 className="typo-card-title text-neutral-900">Your Active Delivery Location</h4>
                   <p className="text-neutral-700 font-medium mt-0.5">
                     {formatLocationLabel(selectedLocation)}
                   </p>
                   <button
                     type="button"
                     onClick={requestLocationPicker}
-                    className="text-[11px] font-semibold text-[#7A1438] hover:underline mt-1 cursor-pointer"
+                    className="typo-btn-sm text-[#7A1438] hover:underline mt-1 cursor-pointer"
                   >
                     Change Delivery Location →
                   </button>
@@ -77,24 +77,24 @@ export const ContactPage: React.FC = () => {
               </div>
 
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-full bg-[#FAF2EB] text-[#7A1438] flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-full bg-[#FAF2EB] text-[#7A1438] flex items-center justify-center shrink-0">
                   <Mail className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-neutral-900">Patron Care Email</h4>
+                  <h4 className="typo-card-title text-neutral-900">Patron Care Email</h4>
                   <p className="text-neutral-500 mt-0.5">
                     Order assistance, returns & wedding collaborations
                   </p>
-                  <p className="text-[#5B112B] font-mono font-semibold mt-1">concierge@vyora.in</p>
+                  <p className="text-[#5B112B] font-semibold mt-1">concierge@vyora.in</p>
                 </div>
               </div>
 
               <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-full bg-[#FAF2EB] text-[#7A1438] flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-full bg-[#FAF2EB] text-[#7A1438] flex items-center justify-center shrink-0">
                   <Clock className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-neutral-900">Concierge Hours</h4>
+                  <h4 className="typo-card-title text-neutral-900">Concierge Hours</h4>
                   <p className="text-neutral-600 mt-0.5">
                     Monday – Sunday · 9:00 AM to 9:00 PM IST
                   </p>
@@ -103,11 +103,11 @@ export const ContactPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-[#4A0E17] text-white p-6 rounded-2xl border border-[#7A1438] space-y-2 text-xs">
-            <h4 className="font-serif text-base font-bold text-[#D4AF37]">
+          <div className="bg-[#4A0E17] text-white p-6 rounded-2xl border border-[#7A1438] space-y-2">
+            <h4 className="typo-h3 text-[#D4AF37]">
               Bridal, Festive & Corporate Gifting Concierge
             </h4>
-            <p className="text-rose-100/80 leading-relaxed font-light">
+            <p className="typo-body-sm text-rose-100/85">
               Planning bespoke wedding favors, handloom couture ensembles, or luxury corporate hampers? Submit an inquiry and our curation desk in Pune, Maharashtra, India will prepare a tailored proposal.
             </p>
           </div>
@@ -120,26 +120,26 @@ export const ContactPage: React.FC = () => {
               <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto">
                 <CheckCircle2 className="w-8 h-8" />
               </div>
-              <h3 className="font-serif text-xl font-bold text-neutral-900">Inquiry Received</h3>
-              <p className="text-xs text-neutral-600 max-w-sm mx-auto">
+              <h3 className="typo-h2 text-neutral-900">Inquiry Received</h3>
+              <p className="typo-body text-neutral-600 max-w-sm mx-auto">
                 Thank you, {name}. A member of our atelier team in Pune, Maharashtra, India will respond to {email} within 2 business hours.
               </p>
               <button
                 onClick={() => setIsSent(false)}
-                className="py-2 px-5 text-xs font-semibold text-[#5B112B] bg-[#FAF2EB] rounded-md cursor-pointer"
+                className="min-h-10 py-2 px-5 typo-btn-sm text-[#5B112B] bg-[#FAF2EB] rounded-lg cursor-pointer"
               >
                 Send Another Message
               </button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
-              <h3 className="font-serif text-lg font-bold text-neutral-900 mb-2">
+              <h3 className="typo-h3 text-neutral-900 mb-2">
                 Send an Inquiry to the Atelier
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold text-neutral-700 block mb-1">
+                  <label className="typo-label text-neutral-700 block mb-1.5">
                     Your Name *
                   </label>
                   <input
@@ -148,11 +148,11 @@ export const ContactPage: React.FC = () => {
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="e.g. Meera Kapadia"
-                    className="w-full text-xs p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md focus:outline-none focus:border-[#7A1438]"
+                    className="typo-input"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-neutral-700 block mb-1">
+                  <label className="typo-label text-neutral-700 block mb-1.5">
                     Email Address *
                   </label>
                   <input
@@ -161,19 +161,19 @@ export const ContactPage: React.FC = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="meera@example.com"
-                    className="w-full text-xs p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md focus:outline-none focus:border-[#7A1438]"
+                    className="typo-input"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-neutral-700 block mb-1">
+                <label className="typo-label text-neutral-700 block mb-1.5">
                   Inquiry Subject
                 </label>
                 <select
                   value={subject}
                   onChange={(e) => setSubject(e.target.value)}
-                  className="w-full text-xs p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md focus:outline-none focus:border-[#7A1438]"
+                  className="typo-input"
                 >
                   <option value="Product / Order Assistance">Product / Order Assistance</option>
                   <option value="Bridal & Custom Sizing Consultation">
@@ -187,7 +187,7 @@ export const ContactPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-neutral-700 block mb-1">
+                <label className="typo-label text-neutral-700 block mb-1.5">
                   Your Message *
                 </label>
                 <textarea
@@ -196,15 +196,15 @@ export const ContactPage: React.FC = () => {
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="Tell us how we can assist you..."
-                  className="w-full text-xs p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md focus:outline-none focus:border-[#7A1438]"
+                  className="typo-input"
                 />
               </div>
 
               <button
                 type="submit"
-                className="py-3 px-6 text-xs font-semibold text-white bg-[#5B112B] hover:bg-[#430C1F] rounded-md transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
+                className="min-h-11 py-3 px-6 typo-btn text-white bg-[#5B112B] hover:bg-[#430C1F] rounded-lg transition-colors inline-flex items-center gap-2 shadow-xs cursor-pointer"
               >
-                <Send className="w-3.5 h-3.5" />
+                <Send className="w-4 h-4 shrink-0" />
                 <span>Submit Inquiry</span>
               </button>
             </form>

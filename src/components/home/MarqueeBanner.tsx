@@ -30,7 +30,7 @@ export const MarqueeBanner: React.FC<MarqueeBannerProps> = ({
       {items.map((text, idx) => (
         <div key={`${text}-${idx}`} className="flex items-center shrink-0">
           <span
-            className={`px-6 text-[11px] sm:text-xs font-medium uppercase tracking-[0.22em] whitespace-nowrap ${
+            className={`px-5 sm:px-6 typo-eyebrow whitespace-nowrap ${
               isDark ? 'text-[#FAF6F2]/90' : 'text-[#4A0E17]'
             }`}
           >
@@ -38,7 +38,7 @@ export const MarqueeBanner: React.FC<MarqueeBannerProps> = ({
           </span>
           <span
             aria-hidden="true"
-            className={`text-xs select-none ${
+            className={`typo-meta select-none ${
               isDark ? 'text-[#D4AF37]' : 'text-[#B8860B]'
             }`}
           >

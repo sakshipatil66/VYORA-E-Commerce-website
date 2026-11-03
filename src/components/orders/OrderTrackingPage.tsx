@@ -22,11 +22,11 @@ export const OrderTrackingPage: React.FC = () => {
 
   if (!order) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-20 text-center space-y-4">
-        <h2 className="font-serif text-2xl font-bold">No orders found</h2>
+      <div className="vyora-container vyora-page max-w-2xl text-center space-y-4">
+        <h2 className="typo-h2 text-neutral-900">No orders found</h2>
         <button
           onClick={() => setActivePage('shop')}
-          className="py-2.5 px-6 text-xs font-semibold text-white bg-[#5B112B] rounded-md"
+          className="min-h-11 py-2.5 px-6 typo-btn text-white bg-[#5B112B] hover:bg-[#430C1F] rounded-lg transition-colors cursor-pointer"
         >
           Explore Collections
         </button>
@@ -63,47 +63,45 @@ export const OrderTrackingPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      
+    <div className="vyora-container vyora-page max-w-4xl">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-xs text-neutral-500 mb-6 font-medium">
-        <button onClick={() => setActivePage('home')} className="hover:text-neutral-900">
+      <nav className="flex flex-wrap items-center gap-2 typo-meta text-neutral-500 mb-6 font-medium">
+        <button onClick={() => setActivePage('home')} className="hover:text-neutral-900 cursor-pointer">
           Home
         </button>
         <ChevronRight className="w-3.5 h-3.5 text-neutral-400" />
-        <button onClick={() => setActivePage('my_orders')} className="hover:text-neutral-900">
+        <button onClick={() => setActivePage('my_orders')} className="hover:text-neutral-900 cursor-pointer">
           My Orders
         </button>
         <ChevronRight className="w-3.5 h-3.5 text-neutral-400" />
-        <span className="text-neutral-900 font-semibold font-mono">Consignment #{order.id}</span>
+        <span className="text-neutral-900 font-semibold typo-tabular">Consignment #{order.id}</span>
       </nav>
 
       {/* Main Tracking Card */}
-      <div className="bg-white rounded-2xl border border-[#EBE4DD] p-6 sm:p-8 shadow-xs space-y-8">
-        
+      <div className="bg-white rounded-2xl border border-[#EBE4DD] p-5 sm:p-8 shadow-xs space-y-8">
         {/* Header Strip */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#EBE4DD]">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="font-serif text-2xl font-bold text-neutral-900">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="typo-h2 text-neutral-900">
                 Tracking Order #{order.id}
-              </span>
-              <span className="text-xs uppercase font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+              </h1>
+              <span className="typo-badge text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded border border-emerald-200">
                 {order.status.replace('_', ' ')}
               </span>
             </div>
-            <p className="text-xs text-neutral-500 mt-1">
+            <p className="typo-body-sm text-neutral-500 mt-1">
               Placed on {order.date} · Courier: <strong>{order.courierName}</strong>
             </p>
           </div>
 
-          <div className="flex items-center gap-2 bg-[#FAF7F5] p-2.5 rounded-lg border border-[#EBE4DD] font-mono text-xs">
+          <div className="flex items-center gap-2 bg-[#FAF7F5] px-3 py-2 rounded-lg border border-[#EBE4DD] typo-body-sm typo-tabular self-start sm:self-auto">
             <span className="text-neutral-500">AWB:</span>
             <span className="font-bold text-neutral-900">{order.trackingNumber}</span>
             <button
               onClick={handleCopyAWB}
               title="Copy AWB Number"
-              className="p-1 text-neutral-500 hover:text-black"
+              className="p-1.5 text-neutral-500 hover:text-black cursor-pointer"
             >
               <Copy className="w-3.5 h-3.5" />
             </button>
@@ -111,8 +109,8 @@ export const OrderTrackingPage: React.FC = () => {
         </div>
 
         {/* Multi-Step Timeline */}
-        <div className="relative pt-4 pb-6">
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+        <div className="relative pt-2 pb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-5 sm:gap-4">
             {steps.map((step, idx) => {
               const Icon = step.icon;
               const isCompleted = idx <= activeIdx;
@@ -134,10 +132,10 @@ export const OrderTrackingPage: React.FC = () => {
                   </div>
 
                   {/* Text */}
-                  <h5 className={`text-xs font-bold mt-2.5 ${isCompleted ? 'text-neutral-900' : 'text-neutral-400'}`}>
+                  <h5 className={`typo-btn-sm mt-2.5 ${isCompleted ? 'text-neutral-900' : 'text-neutral-400'}`}>
                     {step.label}
                   </h5>
-                  <p className="text-[10px] text-neutral-500 mt-0.5 leading-tight max-w-[120px]">
+                  <p className="typo-meta text-neutral-500 mt-0.5 max-w-[130px]">
                     {step.desc}
                   </p>
                 </div>
@@ -146,16 +144,16 @@ export const OrderTrackingPage: React.FC = () => {
           </div>
 
           {/* Interactive Simulation Bar for Testing */}
-          <div className="mt-8 p-3 bg-amber-50/80 rounded-lg border border-amber-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2 text-amber-900">
-              <ShieldCheck className="w-4 h-4 text-amber-700" />
+          <div className="mt-8 p-3.5 bg-amber-50/80 rounded-xl border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 typo-body-sm">
+            <div className="flex items-start sm:items-center gap-2 text-amber-900">
+              <ShieldCheck className="w-4 h-4 text-amber-700 shrink-0 mt-0.5 sm:mt-0" />
               <span>
                 <strong>Live Simulation:</strong> Advance delivery checkpoint to test tracking flow
               </span>
             </div>
             <button
               onClick={advanceNextStatus}
-              className="py-1.5 px-3.5 bg-amber-800 hover:bg-amber-900 text-white font-semibold rounded-md transition-colors shrink-0"
+              className="min-h-10 py-2 px-4 bg-amber-800 hover:bg-amber-900 text-white typo-btn-sm rounded-lg transition-colors self-start sm:self-auto shrink-0 cursor-pointer"
             >
               Advance to Next Status ➔
             </button>
@@ -165,13 +163,13 @@ export const OrderTrackingPage: React.FC = () => {
         {/* Items & Shipping Address Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-[#EBE4DD]">
           {/* Destination */}
-          <div className="p-4 bg-[#FAF7F5] rounded-xl border border-[#EBE4DD] space-y-2 text-xs">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#7A1438]">
+          <div className="p-4 sm:p-5 bg-[#FAF7F5] rounded-xl border border-[#EBE4DD] space-y-2 typo-body-sm">
+            <div className="flex items-center gap-2 typo-label text-[#7A1438]">
               <MapPin className="w-4 h-4" />
               <span>Consignment Destination</span>
             </div>
-            <p className="font-bold text-neutral-900 text-sm">{order.shippingAddress.fullName}</p>
-            <p className="text-neutral-700 leading-relaxed">
+            <p className="typo-card-title font-bold text-neutral-900">{order.shippingAddress.fullName}</p>
+            <p className="text-neutral-700 typo-tabular">
               {order.shippingAddress.street &&
               order.shippingAddress.street !==
                 `${order.shippingAddress.city}, ${order.shippingAddress.state}, India`
@@ -181,7 +179,7 @@ export const OrderTrackingPage: React.FC = () => {
               {order.shippingAddress.pincode ? ` · ${order.shippingAddress.pincode}` : ''}
             </p>
             {order.shippingAddress.phone && (
-              <p className="text-neutral-500 font-mono">Contact: {order.shippingAddress.phone}</p>
+              <p className="typo-meta text-neutral-500 typo-tabular">Contact: {order.shippingAddress.phone}</p>
             )}
             <div className="pt-2 text-emerald-800 font-medium">
               Estimated Delivery: <strong>{order.estimatedDeliveryDate}</strong>
@@ -189,33 +187,33 @@ export const OrderTrackingPage: React.FC = () => {
           </div>
 
           {/* Package items */}
-          <div className="p-4 bg-[#FAF7F5] rounded-xl border border-[#EBE4DD] space-y-3 text-xs">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#7A1438]">
+          <div className="p-4 sm:p-5 bg-[#FAF7F5] rounded-xl border border-[#EBE4DD] space-y-3 typo-body-sm">
+            <div className="flex items-center gap-2 typo-label text-[#7A1438]">
               <Package className="w-4 h-4" />
               <span>Package Summary ({order.items.length})</span>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {order.items.map((it, i) => {
                 const matchedProd = products.find((p) => p.id === it.productId);
                 const imgSrc = matchedProd
                   ? getVariantProductImage(matchedProd, it.color)
                   : it.image;
                 return (
-                  <div key={i} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
+                  <div key={i} className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
                       <ProductImage
                         src={imgSrc}
                         alt={it.name}
                         category={matchedProd?.category}
                         compact
-                        className="w-10 h-10 object-cover rounded bg-white shrink-0"
+                        className="w-11 h-13 object-cover rounded-lg bg-white shrink-0"
                       />
-                      <div>
-                        <p className="font-semibold text-neutral-900 truncate max-w-[180px]">{it.name}</p>
-                        <p className="text-[11px] text-neutral-500">Qty: {it.quantity}</p>
+                      <div className="min-w-0">
+                        <p className="typo-card-title text-neutral-900 truncate">{it.name}</p>
+                        <p className="typo-meta text-neutral-500">Qty: {it.quantity}</p>
                       </div>
                     </div>
-                    <span className="font-mono tabular-nums font-bold text-[#4A0E17]">
+                    <span className="typo-price text-[#4A0E17] shrink-0">
                       ₹{(it.price * it.quantity).toLocaleString('en-IN')}
                     </span>
                   </div>
@@ -226,14 +224,14 @@ export const OrderTrackingPage: React.FC = () => {
         </div>
 
         {/* WhatsApp Concierge Support */}
-        <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-neutral-600">
-          <div className="flex items-center gap-2">
-            <MessageSquare className="w-4 h-4 text-emerald-600" />
+        <div className="pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 typo-body-sm text-neutral-600">
+          <div className="flex items-start sm:items-center gap-2">
+            <MessageSquare className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5 sm:mt-0" />
             <span>Need assistance with delivery reschedule or doorstep inspection?</span>
           </div>
           <button
             onClick={() => addToast('Connecting you to Vyora 24/7 WhatsApp Concierge...')}
-            className="py-2 px-4 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold rounded-md transition-colors"
+            className="min-h-10 py-2 px-5 bg-emerald-700 hover:bg-emerald-800 text-white typo-btn-sm rounded-lg transition-colors self-start sm:self-auto cursor-pointer"
           >
             WhatsApp Concierge
           </button>

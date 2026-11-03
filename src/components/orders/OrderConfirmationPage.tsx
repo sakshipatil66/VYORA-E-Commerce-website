@@ -8,11 +8,11 @@ export const OrderConfirmationPage: React.FC = () => {
 
   if (!currentOrder) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-20 text-center space-y-4">
-        <h2 className="font-serif text-2xl font-bold">No active order</h2>
+      <div className="vyora-container vyora-page max-w-2xl text-center space-y-4">
+        <h2 className="typo-h2 text-neutral-900">No active order</h2>
         <button
           onClick={() => setActivePage('shop')}
-          className="py-2.5 px-6 text-xs font-semibold text-white bg-[#5B112B] rounded-md"
+          className="min-h-11 py-2.5 px-6 typo-btn text-white bg-[#5B112B] hover:bg-[#430C1F] rounded-lg transition-colors cursor-pointer"
         >
           Explore Collections
         </button>
@@ -25,76 +25,75 @@ export const OrderConfirmationPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12">
+    <div className="vyora-container vyora-page max-w-3xl">
       <div className="bg-white rounded-2xl border border-[#EBE4DD] p-6 sm:p-10 shadow-lg text-center space-y-6">
-        
         {/* Success Icon */}
         <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto shadow-xs">
           <CheckCircle2 className="w-9 h-9" />
         </div>
 
         {/* Heading */}
-        <div className="space-y-1">
-          <p className="text-xs uppercase tracking-widest text-[#7A1438] font-bold">
+        <div className="space-y-1.5">
+          <p className="typo-eyebrow text-[#7A1438]">
             Order Confirmed & Allocated
           </p>
-          <h1 className="font-serif text-3xl font-bold text-neutral-900">
+          <h1 className="typo-h1 text-neutral-900">
             Dhanyavaad, Patron!
           </h1>
-          <p className="text-xs text-neutral-600 max-w-md mx-auto">
+          <p className="typo-body text-neutral-600 max-w-md mx-auto">
             Your creation is being handpicked and prepared by our master guild artisans.
           </p>
         </div>
 
         {/* Order Identifier Strip */}
-        <div className="bg-[#FAF7F5] p-4 rounded-xl border border-[#EBE4DD] flex flex-wrap items-center justify-around gap-4 text-xs font-mono tabular-nums">
+        <div className="bg-[#FAF7F5] p-4 rounded-xl border border-[#EBE4DD] grid grid-cols-2 sm:grid-cols-4 gap-4 text-left sm:text-center typo-body-sm typo-tabular">
           <div>
-            <span className="text-neutral-500 block text-[10px] font-sans">Order Identifier</span>
-            <span className="font-bold text-[#4A0E17] text-sm">{currentOrder.id}</span>
+            <span className="typo-label text-neutral-500 block">Order Identifier</span>
+            <span className="font-bold text-[#4A0E17] mt-0.5 block">{currentOrder.id}</span>
           </div>
           <div>
-            <span className="text-neutral-500 block text-[10px] font-sans">Payment Mode</span>
-            <span className="font-semibold text-neutral-800">{currentOrder.paymentMethod} ({currentOrder.paymentStatus})</span>
+            <span className="typo-label text-neutral-500 block">Payment Mode</span>
+            <span className="font-semibold text-neutral-800 mt-0.5 block">{currentOrder.paymentMethod} ({currentOrder.paymentStatus})</span>
           </div>
           <div>
-            <span className="text-neutral-500 block text-[10px] font-sans">Est. Delivery</span>
-            <span className="font-semibold text-emerald-800">{currentOrder.estimatedDeliveryDate}</span>
+            <span className="typo-label text-neutral-500 block">Est. Delivery</span>
+            <span className="font-semibold text-emerald-800 mt-0.5 block">{currentOrder.estimatedDeliveryDate}</span>
           </div>
           <div>
-            <span className="text-neutral-500 block text-[10px] font-sans">Total Paid</span>
-            <span className="font-bold text-[#4A0E17] text-sm">₹{currentOrder.total.toLocaleString('en-IN')}</span>
+            <span className="typo-label text-neutral-500 block">Total Paid</span>
+            <span className="typo-price text-[#4A0E17] mt-0.5 block">₹{currentOrder.total.toLocaleString('en-IN')}</span>
           </div>
         </div>
 
         {/* Item preview */}
         <div className="border-t border-b border-[#F3ECE7] py-4 text-left space-y-3">
-          <h4 className="text-xs font-semibold uppercase tracking-wider text-neutral-700">
+          <h4 className="typo-label text-neutral-700">
             Package Contents ({currentOrder.items.length})
           </h4>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {currentOrder.items.map((item, idx) => {
               const matchedProd = products.find((p) => p.id === item.productId);
               const imgSrc = matchedProd
                 ? getVariantProductImage(matchedProd, item.color)
                 : item.image;
               return (
-                <div key={idx} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-3">
+                <div key={idx} className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <ProductImage
                       src={imgSrc}
                       alt={item.name}
                       category={matchedProd?.category}
                       compact
-                      className="w-12 h-14 object-cover rounded bg-[#FAF7F5] shrink-0"
+                      className="w-12 h-15 object-cover rounded-lg bg-[#FAF7F5] shrink-0"
                     />
-                    <div>
-                      <p className="font-semibold text-neutral-900">{item.name}</p>
-                      <p className="text-[11px] text-neutral-500">
+                    <div className="min-w-0">
+                      <p className="typo-card-title text-neutral-900 line-clamp-1">{item.name}</p>
+                      <p className="typo-meta text-neutral-500 mt-0.5">
                         Qty: {item.quantity} {item.size && `· Size: ${item.size}`} {item.color && `· ${item.color}`}
                       </p>
                     </div>
                   </div>
-                  <span className="font-mono tabular-nums font-bold text-[#4A0E17]">
+                  <span className="typo-price text-[#4A0E17] shrink-0">
                     ₹{(item.price * item.quantity).toLocaleString('en-IN')}
                   </span>
                 </div>
@@ -104,13 +103,13 @@ export const OrderConfirmationPage: React.FC = () => {
         </div>
 
         {/* Delivery Address Details */}
-        <div className="text-left text-xs bg-[#FAF7F5] p-4 rounded-xl border border-[#EBE4DD] space-y-1">
-          <p className="font-bold text-neutral-900">Delivering to:</p>
-          <p className="text-neutral-700">
+        <div className="text-left typo-body-sm bg-[#FAF7F5] p-4 rounded-xl border border-[#EBE4DD] space-y-1">
+          <p className="typo-label text-neutral-900">Delivering to:</p>
+          <p className="font-semibold text-neutral-800 typo-tabular">
             {currentOrder.shippingAddress.fullName}
             {currentOrder.shippingAddress.phone ? ` · ${currentOrder.shippingAddress.phone}` : ''}
           </p>
-          <p className="text-neutral-600">
+          <p className="text-neutral-600 typo-tabular">
             {currentOrder.shippingAddress.street &&
             currentOrder.shippingAddress.street !==
               `${currentOrder.shippingAddress.city}, ${currentOrder.shippingAddress.state}, India`
@@ -127,21 +126,21 @@ export const OrderConfirmationPage: React.FC = () => {
         <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
           <button
             onClick={() => trackOrder(currentOrder.id)}
-            className="w-full sm:w-auto py-3 px-6 text-xs font-semibold text-white bg-[#5B112B] hover:bg-[#430C1F] rounded-md transition-colors flex items-center justify-center gap-2 shadow-xs"
+            className="w-full sm:w-auto min-h-11 py-3 px-6 typo-btn text-white bg-[#5B112B] hover:bg-[#430C1F] rounded-lg transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer"
           >
             <Truck className="w-4 h-4" />
             <span>Track Consignment Live</span>
           </button>
           <button
             onClick={handleDownloadInvoice}
-            className="w-full sm:w-auto py-3 px-6 text-xs font-semibold text-neutral-800 bg-white hover:bg-[#F3ECE7] border border-[#EBE4DD] rounded-md transition-colors flex items-center justify-center gap-2"
+            className="w-full sm:w-auto min-h-11 py-3 px-6 typo-btn text-neutral-800 bg-white hover:bg-[#F3ECE7] border border-[#EBE4DD] rounded-lg transition-colors flex items-center justify-center gap-2 cursor-pointer"
           >
             <Download className="w-4 h-4" />
             <span>Tax Invoice</span>
           </button>
           <button
             onClick={() => setActivePage('shop')}
-            className="w-full sm:w-auto py-3 px-6 text-xs font-semibold text-[#5B112B] hover:underline"
+            className="w-full sm:w-auto min-h-11 py-3 px-5 typo-btn text-[#5B112B] hover:underline cursor-pointer"
           >
             Continue Shopping
           </button>

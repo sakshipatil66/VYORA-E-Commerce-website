@@ -193,9 +193,9 @@ export const PolicyPage: React.FC<{ policyType: PolicyType }> = ({ policyType })
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">
+    <div className="vyora-container vyora-page max-w-5xl space-y-8">
       {/* Breadcrumb */}
-      <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs text-neutral-500 font-medium">
+      <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 typo-meta text-neutral-500">
         <button
           type="button"
           onClick={() => setActivePage('home')}
@@ -203,12 +203,12 @@ export const PolicyPage: React.FC<{ policyType: PolicyType }> = ({ policyType })
         >
           Home
         </button>
-        <ChevronRight className="w-3.5 h-3.5 text-neutral-400" />
+        <ChevronRight className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
         <span className="text-[#7A1438] font-semibold">{doc.title}</span>
       </nav>
 
       {/* Policy Navigation Tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-[#E6DBD1] pb-4">
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar border-b border-[#E6DBD1] pb-4">
         {POLICY_TABS.map((tab) => {
           const isCurrent = tab.id === policyType;
           return (
@@ -216,7 +216,7 @@ export const PolicyPage: React.FC<{ policyType: PolicyType }> = ({ policyType })
               key={tab.id}
               type="button"
               onClick={() => switchPolicy(tab.id)}
-              className={`inline-flex items-center gap-2 py-2 px-4 rounded-full text-xs font-semibold transition-colors cursor-pointer ${
+              className={`min-h-10 inline-flex items-center gap-2 py-2 px-4 rounded-full typo-btn-sm whitespace-nowrap transition-colors cursor-pointer shrink-0 ${
                 isCurrent
                   ? 'bg-[#4A0E17] text-white shadow-2xs'
                   : 'bg-white hover:bg-[#F3ECE7] text-neutral-700 border border-[#E5D9CE]'
@@ -231,25 +231,25 @@ export const PolicyPage: React.FC<{ policyType: PolicyType }> = ({ policyType })
 
       {/* Hero Header Card */}
       <div className="rounded-2xl bg-gradient-to-r from-[#26060D] via-[#4A0E17] to-[#65122F] text-white p-6 sm:p-10 border border-[#D4AF37]/30 shadow-md space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#D4AF37]">
+        <div className="flex flex-wrap items-center justify-between gap-2 typo-eyebrow text-[#D4AF37]">
           <span className="inline-flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5" />
+            <Sparkles className="w-3.5 h-3.5 shrink-0" />
             {doc.eyebrow}
           </span>
-          <span className="text-rose-200/80 font-mono">{doc.updatedAt}</span>
+          <span className="typo-meta normal-case tracking-normal text-rose-200/80">{doc.updatedAt}</span>
         </div>
 
-        <h1 className="font-serif text-2xl sm:text-4xl font-bold text-white leading-tight">
+        <h1 className="typo-h1 text-white">
           {doc.title}
         </h1>
-        <p className="text-xs sm:text-sm text-rose-100/85 leading-relaxed max-w-3xl font-light">
+        <p className="typo-body text-rose-100/90 max-w-3xl">
           {doc.summary}
         </p>
 
         {/* Active Pune / Selected Location Bar */}
-        <div className="pt-3 border-t border-white/15 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2 text-rose-100">
-            <MapPin className="w-4 h-4 text-[#D4AF37] shrink-0" />
+        <div className="pt-3 border-t border-white/15 flex flex-wrap items-center justify-between gap-3 typo-body-sm">
+          <div className="flex items-start sm:items-center gap-2 text-rose-100">
+            <MapPin className="w-4 h-4 text-[#D4AF37] shrink-0 mt-0.5 sm:mt-0" />
             <span>
               Active Delivery Location: <strong className="text-white">{locationLabel}</strong> · Est. Priority Arrival by{' '}
               <strong className="text-[#D4AF37]">{estDate}</strong>
@@ -258,7 +258,7 @@ export const PolicyPage: React.FC<{ policyType: PolicyType }> = ({ policyType })
           <button
             type="button"
             onClick={requestLocationPicker}
-            className="py-1.5 px-3.5 rounded-full bg-white/15 hover:bg-white/25 text-white font-semibold text-xs transition-colors cursor-pointer"
+            className="min-h-9 py-1.5 px-4 rounded-full bg-white/15 hover:bg-white/25 text-white typo-btn-sm transition-colors cursor-pointer"
           >
             Change Location
           </button>
@@ -269,11 +269,11 @@ export const PolicyPage: React.FC<{ policyType: PolicyType }> = ({ policyType })
       <div className="bg-white rounded-2xl border border-[#EBE4DD] p-6 sm:p-10 shadow-2xs divide-y divide-[#F1E8E0]">
         {doc.sections.map((sec, idx) => (
           <div key={sec.heading} className={idx === 0 ? 'pb-6 space-y-3' : 'py-6 space-y-3'}>
-            <h2 className="font-serif text-lg sm:text-xl font-bold text-neutral-900">
+            <h2 className="typo-h3 text-neutral-900">
               {sec.heading}
             </h2>
             {sec.paragraphs.map((p, pIdx) => (
-              <p key={pIdx} className="text-xs sm:text-sm text-neutral-600 leading-relaxed">
+              <p key={pIdx} className="typo-body text-neutral-600">
                 {p}
               </p>
             ))}
@@ -284,10 +284,10 @@ export const PolicyPage: React.FC<{ policyType: PolicyType }> = ({ policyType })
       {/* Helpful Footer CTA */}
       <div className="rounded-2xl bg-[#F6EFE9] border border-[#E5D9CE] p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="space-y-1">
-          <h3 className="font-serif text-base sm:text-lg font-bold text-neutral-900">
+          <h3 className="typo-h3 text-neutral-900">
             Have a question for our Pune Concierge Desk?
           </h3>
-          <p className="text-xs text-neutral-600">
+          <p className="typo-body-sm text-neutral-600">
             Reach out to VYORA Customer Support in Pune, Maharashtra, India or browse our interactive FAQ guide.
           </p>
         </div>
@@ -298,17 +298,17 @@ export const PolicyPage: React.FC<{ policyType: PolicyType }> = ({ policyType })
               setActivePage('contact');
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
-            className="py-2.5 px-5 rounded-full bg-[#4A0E17] hover:bg-[#380811] text-white text-xs font-semibold transition-colors cursor-pointer"
+            className="min-h-11 py-2.5 px-5 rounded-full bg-[#4A0E17] hover:bg-[#380811] text-white typo-btn transition-colors cursor-pointer"
           >
             Contact Support
           </button>
           <button
             type="button"
             onClick={() => openCategoryPage('all', null)}
-            className="inline-flex items-center gap-1.5 py-2.5 px-5 rounded-full bg-white hover:bg-[#FAF2EB] text-[#4A0E17] border border-[#D8C7B8] text-xs font-semibold transition-colors cursor-pointer"
+            className="min-h-11 inline-flex items-center gap-1.5 py-2.5 px-5 rounded-full bg-white hover:bg-[#FAF2EB] text-[#4A0E17] border border-[#D8C7B8] typo-btn transition-colors cursor-pointer"
           >
             <span>Continue Shopping</span>
-            <ArrowRight className="w-3.5 h-3.5" />
+            <ArrowRight className="w-4 h-4 shrink-0" />
           </button>
         </div>
       </div>

@@ -43,18 +43,17 @@ export const FAQPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      
+    <div className="vyora-container vyora-page max-w-4xl">
       {/* Header */}
       <div className="text-center max-w-2xl mx-auto mb-10">
-        <div className="flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-widest text-[#7A1438]">
-          <HelpCircle className="w-4 h-4" />
+        <div className="flex items-center justify-center gap-2 typo-eyebrow text-[#7A1438]">
+          <HelpCircle className="w-4 h-4 shrink-0" />
           <span>Knowledge Sanctuary</span>
         </div>
-        <h1 className="font-serif text-3xl font-bold text-neutral-900 mt-1">
+        <h1 className="typo-h1 text-neutral-900 mt-1">
           Frequently Answered Questions
         </h1>
-        <p className="text-xs text-neutral-500 mt-2">
+        <p className="typo-subtitle text-neutral-500 mt-2">
           Everything you need to know about our artisan guilds, purity stamps, delivery, and payments.
         </p>
       </div>
@@ -66,27 +65,27 @@ export const FAQPage: React.FC = () => {
           return (
             <div
               key={idx}
-              className="bg-white rounded-xl border border-[#EBE4DD] overflow-hidden shadow-2xs transition-all"
+              className="bg-white rounded-2xl border border-[#EBE4DD] overflow-hidden shadow-2xs transition-all"
             >
               <button
                 onClick={() => toggle(idx)}
-                className="w-full text-left p-5 flex items-center justify-between gap-4 hover:bg-[#FAF7F5] transition-colors"
+                className="w-full text-left p-5 flex items-center justify-between gap-4 hover:bg-[#FAF7F5] transition-colors cursor-pointer"
               >
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-[#7A1438] block mb-1">
+                  <span className="typo-label text-[#7A1438] block mb-1">
                     {faq.category}
                   </span>
-                  <h3 className="font-serif text-sm sm:text-base font-bold text-neutral-900">
+                  <h3 className="typo-h4 text-neutral-900 font-serif font-bold">
                     {faq.question}
                   </h3>
                 </div>
-                <div className="p-1 rounded-full bg-[#FAF7F5] text-neutral-500 shrink-0">
+                <div className="w-8 h-8 flex items-center justify-center rounded-full bg-[#FAF7F5] text-neutral-500 shrink-0">
                   {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 </div>
               </button>
 
               {isOpen && (
-                <div className="px-5 pb-5 pt-1 text-xs sm:text-sm text-neutral-600 leading-relaxed font-light border-t border-[#F3ECE7]">
+                <div className="px-5 pb-5 pt-2 typo-body text-neutral-600 border-t border-[#F3ECE7]">
                   {faq.answer}
                 </div>
               )}

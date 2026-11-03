@@ -132,20 +132,20 @@ export const SearchResultsPage: React.FC = () => {
   const locationLabel = formatLocationLabel(selectedLocation);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="vyora-container vyora-page space-y-8">
       {/* Breadcrumb Navigation */}
-      <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-xs text-neutral-500 font-medium">
+      <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 typo-meta text-neutral-500">
         <button
           onClick={() => setActivePage('home')}
           className="hover:text-[#7A1438] transition-colors cursor-pointer"
         >
           Home
         </button>
-        <ChevronRight className="w-3.5 h-3.5 text-neutral-400" />
+        <ChevronRight className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
         <span className="text-neutral-900 font-semibold">Search Results</span>
         {searchQuery && (
           <>
-            <ChevronRight className="w-3.5 h-3.5 text-neutral-400" />
+            <ChevronRight className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
             <span className="text-[#7A1438] truncate max-w-[240px]">“{searchQuery}”</span>
           </>
         )}
@@ -153,19 +153,19 @@ export const SearchResultsPage: React.FC = () => {
 
       {/* Search Header Banner */}
       <div className="bg-gradient-to-r from-[#2D070F] via-[#4A0E17] to-[#65122F] rounded-2xl p-6 sm:p-8 text-white border border-[#D4AF37]/30 shadow-md space-y-5">
-        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
-          <div className="space-y-1.5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#D4AF37] flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5" />
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-5">
+          <div className="space-y-2">
+            <p className="typo-eyebrow text-[#D4AF37] flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 shrink-0" />
               <span>VYORA Centralized Catalog Search · {products.length} Indexed Creations</span>
             </p>
-            <h1 className="font-serif text-2xl sm:text-4xl font-bold text-white">
+            <h1 className="typo-h1 text-white">
               {searchQuery
                 ? `Search Results for “${searchQuery}”`
                 : 'Browse Complete Marketplace Catalog'}
             </h1>
-            <div className="text-xs sm:text-sm text-rose-100/85 flex flex-wrap items-center gap-2">
-              <span className="font-mono tabular-nums font-semibold text-[#D4AF37]">
+            <div className="typo-body-sm text-rose-100/90 flex flex-wrap items-center gap-2">
+              <span className="typo-tabular font-semibold text-[#D4AF37]">
                 {displayedProducts.length}{' '}
                 {displayedProducts.length === 1 ? 'creation' : 'creations'} shown
                 {hasSubFilters ? ` (of ${rawMatchedProducts.length} matched)` : ''}
@@ -174,11 +174,11 @@ export const SearchResultsPage: React.FC = () => {
               <button
                 type="button"
                 onClick={requestLocationPicker}
-                className="inline-flex items-center gap-1.5 text-rose-100/90 hover:text-white transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 text-rose-100/90 hover:text-white transition-colors cursor-pointer text-left"
               >
-                <Truck className="w-3.5 h-3.5 text-[#D4AF37]" />
+                <Truck className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
                 <span>Delivering to {locationLabel} · Est. {estDate}</span>
-                <MapPin className="w-3 h-3 text-[#D4AF37]" />
+                <MapPin className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
               </button>
             </div>
           </div>
@@ -191,7 +191,7 @@ export const SearchResultsPage: React.FC = () => {
               value={refineInput}
               onChange={(e) => setRefineInput(e.target.value)}
               placeholder="Search name, category, brand, keyword, or ID..."
-              className="flex-1 py-2 px-2.5 text-xs sm:text-sm text-neutral-900 placeholder:text-neutral-400 bg-transparent focus:outline-none"
+              className="min-w-0 flex-1 py-2 px-2.5 typo-input-bare text-neutral-900 placeholder:text-neutral-400 bg-transparent focus:outline-none"
             />
             {refineInput && (
               <button
@@ -201,14 +201,14 @@ export const SearchResultsPage: React.FC = () => {
                   submitSearch('');
                 }}
                 aria-label="Clear search query"
-                className="p-1.5 text-neutral-400 hover:text-neutral-700 cursor-pointer"
+                className="w-8 h-8 flex items-center justify-center text-neutral-400 hover:text-neutral-700 cursor-pointer shrink-0"
               >
                 <X className="w-4 h-4" />
               </button>
             )}
             <button
               type="submit"
-              className="py-2 px-5 rounded-full bg-[#5B112B] hover:bg-[#380811] text-white text-xs font-semibold transition-colors cursor-pointer shrink-0"
+              className="min-h-10 py-2 px-5 rounded-full bg-[#5B112B] hover:bg-[#380811] text-white typo-btn-sm transition-colors cursor-pointer shrink-0"
             >
               Search
             </button>
@@ -219,11 +219,11 @@ export const SearchResultsPage: React.FC = () => {
         {rawMatchedProducts.length > 0 && (
           <div className="space-y-3 pt-4 border-t border-white/15">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 max-w-full">
                 <button
                   type="button"
                   onClick={resetSubFilters}
-                  className={`py-1.5 px-3.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                  className={`min-h-9 py-1.5 px-3.5 rounded-full typo-btn-sm whitespace-nowrap transition-colors cursor-pointer ${
                     !hasSubFilters
                       ? 'bg-[#D4AF37] text-neutral-950'
                       : 'bg-white/15 text-white hover:bg-white/25'
@@ -239,7 +239,7 @@ export const SearchResultsPage: React.FC = () => {
                       setCategoryFilter(categoryFilter === catId ? 'all' : catId);
                       setVisibleCount(16);
                     }}
-                    className={`py-1.5 px-3.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer ${
+                    className={`min-h-9 py-1.5 px-3.5 rounded-full typo-btn-sm whitespace-nowrap transition-colors cursor-pointer ${
                       categoryFilter === catId
                         ? 'bg-[#D4AF37] text-neutral-950'
                         : 'bg-white/10 text-rose-100 hover:bg-white/20'
@@ -257,7 +257,7 @@ export const SearchResultsPage: React.FC = () => {
                     setRefineInput('');
                     submitSearch('');
                   }}
-                  className="text-xs font-semibold text-[#D4AF37] hover:underline whitespace-nowrap cursor-pointer"
+                  className="typo-btn-sm text-[#D4AF37] hover:underline whitespace-nowrap cursor-pointer"
                 >
                   Browse All {products.length} Catalog Products →
                 </button>
@@ -265,9 +265,9 @@ export const SearchResultsPage: React.FC = () => {
             </div>
 
             {/* Secondary Filter & Sort Controls (Brand, Price, Rating, Sort) */}
-            <div className="flex flex-wrap items-center justify-between gap-3 bg-[#26060D]/70 rounded-xl p-3 border border-white/10">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-[#26060D]/70 rounded-xl p-3.5 border border-white/10">
               <div className="flex flex-wrap items-center gap-2.5">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[#D4AF37]">
+                <span className="inline-flex items-center gap-1.5 typo-label text-[#D4AF37]">
                   <SlidersHorizontal className="w-3.5 h-3.5" />
                   <span>Filters:</span>
                 </span>
@@ -281,7 +281,7 @@ export const SearchResultsPage: React.FC = () => {
                       setBrandFilter(e.target.value);
                       setVisibleCount(16);
                     }}
-                    className="appearance-none bg-[#380811] border border-white/20 text-white text-xs rounded-lg py-1.5 pl-3 pr-7 focus:outline-none focus:border-[#D4AF37] cursor-pointer"
+                    className="min-h-9 appearance-none bg-[#380811] border border-white/20 text-white typo-btn-sm rounded-lg py-1.5 pl-3 pr-8 focus:outline-none focus:border-[#D4AF37] cursor-pointer"
                   >
                     <option value="all">All Brands ({matchedBrands.length})</option>
                     {matchedBrands.map(([brand, cnt]) => (
@@ -290,7 +290,7 @@ export const SearchResultsPage: React.FC = () => {
                       </option>
                     ))}
                   </select>
-                  <ChevronDown className="w-3.5 h-3.5 text-rose-200 absolute right-2 top-2 pointer-events-none" />
+                  <ChevronDown className="w-3.5 h-3.5 text-rose-200 absolute right-2.5 top-2.5 pointer-events-none" />
                 </div>
 
                 {/* Price Filter */}
@@ -302,7 +302,7 @@ export const SearchResultsPage: React.FC = () => {
                       setPriceFilter(e.target.value as PriceFilterId);
                       setVisibleCount(16);
                     }}
-                    className="appearance-none bg-[#380811] border border-white/20 text-white text-xs rounded-lg py-1.5 pl-3 pr-7 focus:outline-none focus:border-[#D4AF37] cursor-pointer"
+                    className="min-h-9 appearance-none bg-[#380811] border border-white/20 text-white typo-btn-sm rounded-lg py-1.5 pl-3 pr-8 focus:outline-none focus:border-[#D4AF37] cursor-pointer"
                   >
                     <option value="all">All Prices</option>
                     <option value="under2k">Under ₹2,000</option>
@@ -310,7 +310,7 @@ export const SearchResultsPage: React.FC = () => {
                     <option value="5k-15k">₹5,000 – ₹15,000</option>
                     <option value="above15k">Above ₹15,000</option>
                   </select>
-                  <ChevronDown className="w-3.5 h-3.5 text-rose-200 absolute right-2 top-2 pointer-events-none" />
+                  <ChevronDown className="w-3.5 h-3.5 text-rose-200 absolute right-2.5 top-2.5 pointer-events-none" />
                 </div>
 
                 {/* Rating Filter */}
@@ -322,23 +322,23 @@ export const SearchResultsPage: React.FC = () => {
                       setMinRating(Number(e.target.value));
                       setVisibleCount(16);
                     }}
-                    className="appearance-none bg-[#380811] border border-white/20 text-white text-xs rounded-lg py-1.5 pl-3 pr-7 focus:outline-none focus:border-[#D4AF37] cursor-pointer"
+                    className="min-h-9 appearance-none bg-[#380811] border border-white/20 text-white typo-btn-sm rounded-lg py-1.5 pl-3 pr-8 focus:outline-none focus:border-[#D4AF37] cursor-pointer"
                   >
                     <option value={0}>Any Rating</option>
                     <option value={4.8}>4.8★ & above</option>
                     <option value={4.5}>4.5★ & above</option>
                     <option value={4.0}>4.0★ & above</option>
                   </select>
-                  <ChevronDown className="w-3.5 h-3.5 text-rose-200 absolute right-2 top-2 pointer-events-none" />
+                  <ChevronDown className="w-3.5 h-3.5 text-rose-200 absolute right-2.5 top-2.5 pointer-events-none" />
                 </div>
 
                 {hasSubFilters && (
                   <button
                     type="button"
                     onClick={resetSubFilters}
-                    className="inline-flex items-center gap-1 py-1.5 px-3 rounded-lg bg-white/15 hover:bg-white/25 text-xs font-semibold text-white transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 min-h-9 py-1.5 px-3 rounded-lg bg-white/15 hover:bg-white/25 typo-btn-sm text-white transition-colors cursor-pointer"
                   >
-                    <RotateCcw className="w-3 h-3 text-[#D4AF37]" />
+                    <RotateCcw className="w-3.5 h-3.5 text-[#D4AF37]" />
                     <span>Reset Filters</span>
                   </button>
                 )}
@@ -346,13 +346,13 @@ export const SearchResultsPage: React.FC = () => {
 
               {/* Sort Selector */}
               <div className="flex items-center gap-2 shrink-0">
-                <span className="text-xs text-rose-200/80">Sort by:</span>
+                <span className="typo-meta text-rose-200/80">Sort by:</span>
                 <div className="relative">
                   <select
                     aria-label="Sort search results"
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                    className="appearance-none bg-[#380811] border border-white/25 text-white text-xs rounded-lg py-1.5 pl-3 pr-8 focus:outline-none focus:border-[#D4AF37] cursor-pointer"
+                    className="min-h-9 appearance-none bg-[#380811] border border-white/25 text-white typo-btn-sm rounded-lg py-1.5 pl-3 pr-8 focus:outline-none focus:border-[#D4AF37] cursor-pointer"
                   >
                     <option value="relevance">Relevance</option>
                     <option value="popular">Popularity</option>
@@ -360,7 +360,7 @@ export const SearchResultsPage: React.FC = () => {
                     <option value="price-asc">Price: Low to High</option>
                     <option value="price-desc">Price: High to Low</option>
                   </select>
-                  <ChevronDown className="w-3.5 h-3.5 text-rose-200 absolute right-2.5 top-2 pointer-events-none" />
+                  <ChevronDown className="w-3.5 h-3.5 text-rose-200 absolute right-2.5 top-2.5 pointer-events-none" />
                 </div>
               </div>
             </div>
@@ -377,34 +377,34 @@ export const SearchResultsPage: React.FC = () => {
 
           {rawMatchedProducts.length > 0 && hasSubFilters ? (
             <div className="space-y-3 max-w-lg mx-auto">
-              <h2 className="font-serif text-2xl font-bold text-neutral-900">
+              <h2 className="typo-h2 text-neutral-900">
                 No products match your active sub-filters
               </h2>
-              <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed">
+              <p className="typo-body text-neutral-600">
                 We found {rawMatchedProducts.length} matching creations for “{searchQuery}”, but none match your narrow brand, price, or rating filter.
               </p>
               <button
                 type="button"
                 onClick={resetSubFilters}
-                className="py-2.5 px-6 rounded-full bg-[#4A0E17] hover:bg-[#380811] text-white text-xs font-semibold transition-colors cursor-pointer"
+                className="min-h-11 py-2.5 px-6 rounded-full bg-[#4A0E17] hover:bg-[#380811] text-white typo-btn transition-colors cursor-pointer"
               >
                 View All {rawMatchedProducts.length} Matching Results
               </button>
             </div>
           ) : (
             <>
-              <div className="space-y-2 max-w-lg mx-auto">
-                <h2 className="font-serif text-2xl font-bold text-neutral-900">
+              <div className="space-y-2.5 max-w-lg mx-auto">
+                <h2 className="typo-h2 text-neutral-900">
                   We couldn’t find any products matching “{searchQuery}”
                 </h2>
-                <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed">
+                <p className="typo-body text-neutral-600">
                   Double-check your spelling, search by product ID (such as “vyo-fash-01” or “vyo-elec-01”), try general keywords (“saree”, “earrings”, “perfume”, “speaker”, “sandals”), or explore our categories below.
                 </p>
               </div>
 
               {/* Helpful Suggested Keywords */}
-              <div className="space-y-2">
-                <p className="text-[11px] font-semibold uppercase tracking-widest text-[#8C6D58]">
+              <div className="space-y-2.5">
+                <p className="typo-label text-[#8C6D58]">
                   Try Searching For
                 </p>
                 <div className="flex flex-wrap items-center justify-center gap-2">
@@ -413,7 +413,7 @@ export const SearchResultsPage: React.FC = () => {
                       key={kw}
                       type="button"
                       onClick={() => submitSearch(kw)}
-                      className="py-1.5 px-3.5 rounded-full bg-[#FAF7F5] hover:bg-[#4A0E17] text-[#380811] hover:text-white border border-[#E5D9CE] text-xs font-semibold transition-colors cursor-pointer"
+                      className="min-h-9 py-1.5 px-4 rounded-full bg-[#FAF7F5] hover:bg-[#4A0E17] text-[#380811] hover:text-white border border-[#E5D9CE] typo-btn-sm transition-colors cursor-pointer"
                     >
                       {kw}
                     </button>
@@ -425,7 +425,7 @@ export const SearchResultsPage: React.FC = () => {
 
           {/* Browse Curated Categories */}
           <div className="pt-6 border-t border-[#F1E8E0] text-left">
-            <p className="text-xs font-semibold uppercase tracking-widest text-[#7A1438] text-center mb-4">
+            <p className="typo-eyebrow text-[#7A1438] text-center mb-4">
               Or Explore Marketplace Categories
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -434,13 +434,13 @@ export const SearchResultsPage: React.FC = () => {
                   key={cat.id}
                   type="button"
                   onClick={() => openCategoryPage(cat.id, null)}
-                  className="group p-3 rounded-xl border border-[#EBE4DD] hover:border-[#7A1438] bg-[#FAF7F5] hover:bg-white text-left transition-all cursor-pointer"
+                  className="group p-3.5 rounded-xl border border-[#EBE4DD] hover:border-[#7A1438] bg-[#FAF7F5] hover:bg-white text-left transition-all cursor-pointer"
                 >
-                  <p className="font-serif text-sm font-bold text-neutral-900 group-hover:text-[#7A1438]">
+                  <p className="typo-card-title text-neutral-900 group-hover:text-[#7A1438]">
                     {cat.shortLabel}
                   </p>
-                  <p className="text-[11px] text-neutral-500 line-clamp-1 mt-0.5">{cat.eyebrow}</p>
-                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#7A1438] mt-2">
+                  <p className="typo-meta text-neutral-500 line-clamp-1 mt-0.5">{cat.eyebrow}</p>
+                  <span className="inline-flex items-center gap-1 typo-meta font-semibold text-[#7A1438] mt-2">
                     Shop Now <ArrowRight className="w-3 h-3" />
                   </span>
                 </button>
@@ -459,21 +459,21 @@ export const SearchResultsPage: React.FC = () => {
           {/* Load More / View All Results Control */}
           {visibleCount < displayedProducts.length && (
             <div className="text-center pt-4 space-y-3">
-              <p className="text-xs text-neutral-500 font-mono tabular-nums">
+              <p className="typo-meta typo-tabular text-neutral-500">
                 Showing {Math.min(visibleCount, displayedProducts.length)} of {displayedProducts.length} matching products
               </p>
               <div className="flex flex-wrap items-center justify-center gap-3">
                 <button
                   type="button"
                   onClick={() => setVisibleCount((prev) => prev + 16)}
-                  className="py-3 px-8 rounded-full bg-[#4A0E17] hover:bg-[#380811] text-white text-xs sm:text-sm font-semibold transition-colors shadow-sm cursor-pointer"
+                  className="min-h-11 py-3 px-8 rounded-full bg-[#4A0E17] hover:bg-[#380811] text-white typo-btn transition-colors shadow-sm cursor-pointer"
                 >
                   Load More Results ({displayedProducts.length - visibleCount} remaining)
                 </button>
                 <button
                   type="button"
                   onClick={() => setVisibleCount(displayedProducts.length)}
-                  className="py-3 px-6 rounded-full bg-white hover:bg-[#FAF2EB] text-[#4A0E17] border border-[#D8C7B8] text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
+                  className="min-h-11 py-3 px-6 rounded-full bg-white hover:bg-[#FAF2EB] text-[#4A0E17] border border-[#D8C7B8] typo-btn transition-colors cursor-pointer"
                 >
                   View All {displayedProducts.length} Results
                 </button>

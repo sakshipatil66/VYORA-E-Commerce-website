@@ -43,8 +43,8 @@ export const CheckoutPage: React.FC = () => {
       : [
           {
             id: 'addr-pune-def',
-            fullName: 'Priya Deshmukh',
-            phone: '',
+            fullName: currentUser?.name || '',
+            phone: currentUser?.phone || '',
             pincode: '',
             city: selectedLocation.city || 'Pune',
             state: selectedLocation.state || 'Maharashtra',
@@ -87,16 +87,16 @@ export const CheckoutPage: React.FC = () => {
 
   if (cart.length === 0) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-20 text-center space-y-4">
-        <h2 className="font-serif text-2xl font-bold text-neutral-800">
+      <div className="vyora-container py-20 text-center space-y-4">
+        <h2 className="typo-h2 text-neutral-800">
           Your shopping bag is empty
         </h2>
-        <p className="text-xs text-neutral-500">
+        <p className="typo-body text-neutral-500">
           Please select items before proceeding to checkout.
         </p>
         <button
           onClick={() => setActivePage('shop')}
-          className="py-2.5 px-6 text-xs font-semibold text-white bg-[#5B112B] rounded-md cursor-pointer"
+          className="min-h-11 py-2.5 px-6 typo-btn text-white bg-[#5B112B] rounded-lg cursor-pointer"
         >
           Explore Collections
         </button>
@@ -128,7 +128,7 @@ export const CheckoutPage: React.FC = () => {
     setNewStreet(formatLocationLabel(found));
   };
 
-  const handleSaveNewAddress = (e: React.FormEvent) => {
+  const handleSaveNewAddress = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newFullName.trim() || !newCity.trim() || !newState.trim()) {
       addToast('Please provide recipient name, city, and state', 'warning');
@@ -150,32 +150,39 @@ export const CheckoutPage: React.FC = () => {
       state: newState.trim(),
       street: newStreet.trim() || formattedLoc,
       type: newType,
-      isDefault: false
+      isDefault: savedAddresses.length === 0
     };
 
-    const updated = [...savedAddresses, newAddr];
-    updateUserAddresses(updated);
-    setSelectedAddressId(newAddr.id);
+    try {
+      const updated = [...savedAddresses, newAddr];
+      await updateUserAddresses(updated);
+      setSelectedAddressId(newAddr.id);
 
-    const matched = findLocationByCityOrState(`${newAddr.city}, ${newAddr.state}`);
-    if (matched) setSelectedLocation(matched);
+      const matched = findLocationByCityOrState(`${newAddr.city}, ${newAddr.state}`);
+      if (matched) setSelectedLocation(matched);
 
-    setIsAddingNewAddress(false);
-    addToast(`Delivery destination saved: ${formattedLoc}`);
+      setIsAddingNewAddress(false);
+      addToast(`Delivery destination saved: ${formattedLoc}`);
+    } catch (err: any) {
+      addToast(err?.message || 'Unable to save address right now.', 'warning');
+    }
   };
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
     setIsProcessing(true);
-    setTimeout(() => {
-      createOrder({
+    try {
+      await createOrder({
         address: selectedAddress,
         paymentMethod,
         deliverySpeed
       });
-      setIsProcessing(false);
       setActivePage('order_confirmation');
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, 900);
+    } catch (err: any) {
+      addToast(err?.message || 'Unable to complete order right now.', 'warning');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const stdDays = addrLoc ? addrLoc.standardDays : 4;
@@ -197,19 +204,19 @@ export const CheckoutPage: React.FC = () => {
   });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div className="vyora-container vyora-page">
       {/* Title & Trust Header */}
       <div className="mb-8 border-b border-[#EBE4DD] pb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <span className="text-xs font-semibold uppercase tracking-widest text-[#7A1438]">
+          <span className="typo-eyebrow text-[#7A1438]">
             Vyora Secure Checkout
           </span>
-          <h1 className="font-serif text-3xl font-bold text-neutral-900 mt-0.5">
+          <h1 className="typo-h1 text-neutral-900 mt-1">
             Delivery & Payment Concierge
           </h1>
         </div>
-        <div className="flex items-center gap-2 text-xs text-neutral-600 bg-white py-1.5 px-3 rounded-md border border-[#EBE4DD]">
-          <Lock className="w-3.5 h-3.5 text-emerald-700" />
+        <div className="self-start sm:self-auto flex items-center gap-2 typo-meta text-neutral-600 bg-white py-2 px-3.5 rounded-lg border border-[#EBE4DD]">
+          <Lock className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
           <span>256-Bit SSL Encrypted Transaction</span>
         </div>
       </div>
@@ -218,25 +225,25 @@ export const CheckoutPage: React.FC = () => {
         {/* Left 7 Columns: Checkout Steps */}
         <div className="lg:col-span-7 space-y-8">
           {/* STEP 1: Delivery Location & Address */}
-          <section className="bg-white p-6 rounded-xl border border-[#EBE4DD] shadow-2xs space-y-4">
+          <section className="bg-white p-5 sm:p-6 rounded-2xl border border-[#EBE4DD] shadow-2xs space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-6 h-6 rounded-full bg-[#5B112B] text-white flex items-center justify-center text-xs font-bold font-mono">
+              <div className="flex items-center gap-3">
+                <div className="w-7 h-7 rounded-full bg-[#5B112B] text-white flex items-center justify-center typo-btn-sm typo-tabular shrink-0">
                   1
                 </div>
                 <div>
-                  <h3 className="font-serif text-base font-bold text-neutral-900">
+                  <h3 className="typo-h3 text-neutral-900">
                     Delivery Location & Address
                   </h3>
-                  <p className="text-[11px] text-neutral-500">
-                    Default & Active Location: <strong>{formatLocationLabel(selectedLocation)}</strong>
+                  <p className="typo-meta text-neutral-500">
+                    Default & Active Location: <strong className="text-neutral-800">{formatLocationLabel(selectedLocation)}</strong>
                   </p>
                 </div>
               </div>
               {!isAddingNewAddress && (
                 <button
                   onClick={() => setIsAddingNewAddress(true)}
-                  className="flex items-center gap-1 text-xs font-semibold text-[#5B112B] hover:text-[#4A0E17] cursor-pointer"
+                  className="min-h-9 px-3 rounded-lg bg-[#FAF7F5] border border-[#EBE4DD] flex items-center gap-1.5 typo-btn-sm text-[#5B112B] hover:text-[#4A0E17] cursor-pointer"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Add New Location / Address</span>
@@ -245,9 +252,9 @@ export const CheckoutPage: React.FC = () => {
             </div>
 
             {/* Quick Location Switcher right inside Checkout */}
-            <div className="p-3 bg-[#FAF7F5] rounded-lg border border-[#E5D9CE] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <span className="text-xs font-semibold text-[#4A0E17] flex items-center gap-1.5">
-                <MapPin className="w-3.5 h-3.5 text-[#7A1438]" />
+            <div className="p-3.5 bg-[#FAF7F5] rounded-xl border border-[#E5D9CE] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <span className="typo-body-sm font-semibold text-[#4A0E17] flex items-center gap-1.5">
+                <MapPin className="w-4 h-4 text-[#7A1438] shrink-0" />
                 <span>Shopping & Delivery City:</span>
               </span>
               <select
@@ -266,7 +273,7 @@ export const CheckoutPage: React.FC = () => {
                   }
                 }}
                 aria-label="Select checkout delivery city"
-                className="text-xs py-1.5 px-3 bg-white border border-[#EBE4DD] rounded-md font-medium text-neutral-900 focus:outline-none focus:border-[#7A1438] cursor-pointer"
+                className="typo-input sm:w-auto bg-white font-medium cursor-pointer"
               >
                 {SELECTABLE_INDIAN_LOCATIONS.map((loc) => (
                   <option key={loc.id} value={loc.id}>
@@ -296,34 +303,34 @@ export const CheckoutPage: React.FC = () => {
                       <div
                         key={addr.id}
                         onClick={() => handleSelectAddressCard(addr)}
-                        className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                        className={`p-4 rounded-xl border cursor-pointer transition-all ${
                           selectedAddressId === addr.id
                             ? 'border-[#7A1438] bg-[#FAF2EB] shadow-xs'
                             : 'border-[#EBE4DD] bg-white hover:border-neutral-400'
                         }`}
                       >
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-xs font-bold text-neutral-900">
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <span className="typo-card-title text-neutral-900">
                             {addr.fullName}
                           </span>
-                          <span className="text-[10px] uppercase font-bold text-[#7A1438] bg-white px-2 py-0.5 rounded border border-[#EBE4DD]">
+                          <span className="typo-badge text-[#7A1438] bg-white px-2 py-0.5 rounded border border-[#EBE4DD] shrink-0">
                             {addr.type}
                           </span>
                         </div>
                         {addr.street && addr.street !== cardLocLabel && (
-                          <p className="text-xs text-neutral-600 line-clamp-2">{addr.street}</p>
+                          <p className="typo-body-sm text-neutral-600 line-clamp-2">{addr.street}</p>
                         )}
-                        <p className="text-xs text-neutral-800 font-semibold mt-0.5">
+                        <p className="typo-body-sm text-neutral-800 font-semibold mt-0.5">
                           {cardLocLabel}
                           {addr.pincode ? ` · ${addr.pincode}` : ''}
                         </p>
                         {addr.phone && (
-                          <p className="text-[11px] text-neutral-500 font-mono mt-1">
+                          <p className="typo-meta typo-tabular text-neutral-500 mt-1">
                             Contact: {addr.phone}
                           </p>
                         )}
-                        <p className="text-[11px] text-emerald-800 font-medium mt-1.5 flex items-center gap-1">
-                          <Check className="w-3 h-3" />
+                        <p className="typo-meta text-emerald-800 font-semibold mt-1.5 flex items-center gap-1">
+                          <Check className="w-3.5 h-3.5 shrink-0" />
                           <span>Est. arrival by {estLabel}</span>
                         </p>
                       </div>
@@ -333,16 +340,16 @@ export const CheckoutPage: React.FC = () => {
               </div>
             ) : (
               /* Add New Address Form */
-              <form onSubmit={handleSaveNewAddress} className="space-y-3 pt-2">
-                <div className="p-3 bg-[#FAF7F5] rounded-lg border border-[#E5D9CE] space-y-1.5">
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-[#7A1438] flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5" />
+              <form onSubmit={handleSaveNewAddress} className="space-y-4 pt-2">
+                <div className="p-3.5 bg-[#FAF7F5] rounded-xl border border-[#E5D9CE] space-y-1.5">
+                  <label className="typo-label text-[#7A1438] flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 shrink-0" />
                     <span>Choose City Location (Default: Pune, Maharashtra, India)</span>
                   </label>
                   <select
                     onChange={(e) => handleLocationPresetChange(e.target.value)}
                     defaultValue={selectedLocation.id}
-                    className="w-full text-xs p-2 bg-white border border-[#EBE4DD] rounded-md focus:outline-none focus:border-[#7A1438]"
+                    className="typo-input bg-white"
                   >
                     {SELECTABLE_INDIAN_LOCATIONS.map((loc) => (
                       <option key={loc.id} value={loc.id}>
@@ -352,9 +359,9 @@ export const CheckoutPage: React.FC = () => {
                   </select>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-semibold text-neutral-700 block mb-1">
+                    <label className="typo-label text-neutral-700 block mb-1.5">
                       Recipient Full Name *
                     </label>
                     <input
@@ -363,11 +370,11 @@ export const CheckoutPage: React.FC = () => {
                       value={newFullName}
                       onChange={(e) => setNewFullName(e.target.value)}
                       placeholder="Enter recipient name"
-                      className="w-full text-xs p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md focus:outline-none focus:border-[#7A1438]"
+                      className="typo-input"
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-neutral-700 block mb-1">
+                    <label className="typo-label text-neutral-700 block mb-1.5">
                       Contact Number (Optional)
                     </label>
                     <input
@@ -375,14 +382,14 @@ export const CheckoutPage: React.FC = () => {
                       value={newPhone}
                       onChange={(e) => setNewPhone(e.target.value)}
                       placeholder="Optional mobile number"
-                      className="w-full text-xs p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md focus:outline-none focus:border-[#7A1438]"
+                      className="typo-input typo-tabular"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
-                    <label className="text-xs font-semibold text-neutral-700 block mb-1">
+                    <label className="typo-label text-neutral-700 block mb-1.5">
                       City *
                     </label>
                     <input
@@ -391,17 +398,17 @@ export const CheckoutPage: React.FC = () => {
                       value={newCity}
                       onChange={(e) => setNewCity(e.target.value)}
                       placeholder="Pune"
-                      className="w-full text-xs p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md focus:outline-none focus:border-[#7A1438]"
+                      className="typo-input"
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-neutral-700 block mb-1">
+                    <label className="typo-label text-neutral-700 block mb-1.5">
                       State *
                     </label>
                     <select
                       value={newState}
                       onChange={(e) => setNewState(e.target.value)}
-                      className="w-full text-xs p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md focus:outline-none focus:border-[#7A1438]"
+                      className="typo-input"
                     >
                       {[
                         'Maharashtra',
@@ -421,7 +428,7 @@ export const CheckoutPage: React.FC = () => {
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-neutral-700 block mb-1">
+                    <label className="typo-label text-neutral-700 block mb-1.5">
                       Postal Code (Optional)
                     </label>
                     <input
@@ -430,13 +437,13 @@ export const CheckoutPage: React.FC = () => {
                       value={newPincode}
                       onChange={(e) => setNewPincode(e.target.value.replace(/\D/g, ''))}
                       placeholder="Optional"
-                      className="w-full text-xs p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md focus:outline-none focus:border-[#7A1438] font-mono"
+                      className="typo-input typo-tabular"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-neutral-700 block mb-1">
+                  <label className="typo-label text-neutral-700 block mb-1.5">
                     Delivery Address Details
                   </label>
                   <textarea
@@ -444,45 +451,45 @@ export const CheckoutPage: React.FC = () => {
                     value={newStreet}
                     onChange={(e) => setNewStreet(e.target.value)}
                     placeholder="Pune, Maharashtra, India"
-                    className="w-full text-xs p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md focus:outline-none focus:border-[#7A1438]"
+                    className="typo-input"
                   />
                 </div>
 
-                <div className="flex items-center gap-4 pt-1">
-                  <span className="text-xs font-semibold text-neutral-700">Type:</span>
-                  <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                <div className="flex flex-wrap items-center gap-4 pt-1 typo-body-sm">
+                  <span className="typo-label text-neutral-700">Type:</span>
+                  <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="radio"
                       name="addressType"
                       checked={newType === 'Home'}
                       onChange={() => setNewType('Home')}
-                      className="accent-[#7A1438]"
+                      className="w-4 h-4 accent-[#7A1438]"
                     />
                     <span>Home (All Day Delivery)</span>
                   </label>
-                  <label className="flex items-center gap-1.5 text-xs cursor-pointer">
+                  <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="radio"
                       name="addressType"
                       checked={newType === 'Work'}
                       onChange={() => setNewType('Work')}
-                      className="accent-[#7A1438]"
+                      className="w-4 h-4 accent-[#7A1438]"
                     />
                     <span>Work (10 AM - 6 PM)</span>
                   </label>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-2">
+                <div className="flex flex-wrap justify-end gap-2 pt-2">
                   <button
                     type="button"
                     onClick={() => setIsAddingNewAddress(false)}
-                    className="py-2 px-4 text-xs text-neutral-600 hover:text-neutral-900 cursor-pointer"
+                    className="min-h-10 py-2 px-4 typo-btn-sm text-neutral-600 hover:text-neutral-900 cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="py-2 px-5 text-xs font-semibold text-white bg-[#5B112B] hover:bg-[#430C1F] rounded-md cursor-pointer"
+                    className="min-h-10 py-2 px-5 typo-btn-sm text-white bg-[#5B112B] hover:bg-[#430C1F] rounded-lg cursor-pointer"
                   >
                     Save & Deliver Here
                   </button>
@@ -492,13 +499,13 @@ export const CheckoutPage: React.FC = () => {
           </section>
 
           {/* STEP 2: Location-Aware Delivery Speed Option */}
-          <section className="bg-white p-6 rounded-xl border border-[#EBE4DD] shadow-2xs space-y-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-6 h-6 rounded-full bg-[#5B112B] text-white flex items-center justify-center text-xs font-bold font-mono">
+          <section className="bg-white p-5 sm:p-6 rounded-2xl border border-[#EBE4DD] shadow-2xs space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-7 h-7 rounded-full bg-[#5B112B] text-white flex items-center justify-center typo-btn-sm typo-tabular shrink-0">
                 2
               </div>
               <div>
-                <h3 className="font-serif text-base font-bold text-neutral-900">
+                <h3 className="typo-h3 text-neutral-900">
                   Choose Delivery Speed for {activeAddressLabel}
                 </h3>
               </div>
@@ -507,7 +514,7 @@ export const CheckoutPage: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <label
                 onClick={() => setDeliverySpeed('standard')}
-                className={`p-3.5 rounded-lg border cursor-pointer flex items-start gap-3 transition-all ${
+                className={`p-4 rounded-xl border cursor-pointer flex items-start gap-3 transition-all ${
                   deliverySpeed === 'standard'
                     ? 'border-[#7A1438] bg-[#FAF2EB]'
                     : 'border-[#EBE4DD] bg-white'
@@ -518,16 +525,16 @@ export const CheckoutPage: React.FC = () => {
                   name="speed"
                   checked={deliverySpeed === 'standard'}
                   onChange={() => setDeliverySpeed('standard')}
-                  className="mt-0.5 accent-[#7A1438]"
+                  className="mt-1 w-4 h-4 accent-[#7A1438] shrink-0"
                 />
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-neutral-900">Standard Insured</span>
-                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="typo-card-title text-neutral-900">Standard Insured</span>
+                    <span className="typo-badge text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded">
                       {cartSubtotal > 999 ? 'FREE' : '₹99'}
                     </span>
                   </div>
-                  <p className="text-xs text-neutral-600 mt-0.5">
+                  <p className="typo-body-sm text-neutral-600 mt-1">
                     Est. by <strong>{stdDateLabel}</strong> ({stdDays} business days)
                   </p>
                 </div>
@@ -535,7 +542,7 @@ export const CheckoutPage: React.FC = () => {
 
               <label
                 onClick={() => setDeliverySpeed('express')}
-                className={`p-3.5 rounded-lg border cursor-pointer flex items-start gap-3 transition-all ${
+                className={`p-4 rounded-xl border cursor-pointer flex items-start gap-3 transition-all ${
                   deliverySpeed === 'express'
                     ? 'border-[#7A1438] bg-[#FAF2EB]'
                     : 'border-[#EBE4DD] bg-white'
@@ -546,18 +553,18 @@ export const CheckoutPage: React.FC = () => {
                   name="speed"
                   checked={deliverySpeed === 'express'}
                   onChange={() => setDeliverySpeed('express')}
-                  className="mt-0.5 accent-[#7A1438]"
+                  className="mt-1 w-4 h-4 accent-[#7A1438] shrink-0"
                 />
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-neutral-900">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="typo-card-title text-neutral-900">
                       {addrLoc?.isPune ? 'Pune Priority Dispatch' : 'Priority Air VIP'}
                     </span>
-                    <span className="text-[10px] font-bold text-[#7A1438] bg-rose-50 px-1.5 py-0.5 rounded font-mono">
+                    <span className="typo-badge typo-tabular text-[#7A1438] bg-rose-50 px-2 py-0.5 rounded">
                       ₹149
                     </span>
                   </div>
-                  <p className="text-xs text-neutral-600 mt-0.5">
+                  <p className="typo-body-sm text-neutral-600 mt-1">
                     Est. by <strong>{expDateLabel}</strong> ({expDays}{' '}
                     {expDays === 1 ? 'day' : 'days'})
                   </p>
@@ -567,17 +574,17 @@ export const CheckoutPage: React.FC = () => {
           </section>
 
           {/* STEP 3: Payment Method */}
-          <section className="bg-white p-6 rounded-xl border border-[#EBE4DD] shadow-2xs space-y-4">
-            <div className="flex items-center gap-2.5">
-              <div className="w-6 h-6 rounded-full bg-[#5B112B] text-white flex items-center justify-center text-xs font-bold font-mono">
+          <section className="bg-white p-5 sm:p-6 rounded-2xl border border-[#EBE4DD] shadow-2xs space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-7 h-7 rounded-full bg-[#5B112B] text-white flex items-center justify-center typo-btn-sm typo-tabular shrink-0">
                 3
               </div>
-              <h3 className="font-serif text-base font-bold text-neutral-900">
+              <h3 className="typo-h3 text-neutral-900">
                 Select Payment Mode
               </h3>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
               {[
                 { id: 'UPI', label: 'UPI / QR', icon: QrCode },
                 { id: 'Card', label: 'Cards', icon: CreditCard },
@@ -591,7 +598,7 @@ export const CheckoutPage: React.FC = () => {
                     key={m.id}
                     type="button"
                     onClick={() => setPaymentMethod(m.id as any)}
-                    className={`p-3 rounded-lg border text-left flex flex-col items-center sm:items-start gap-1.5 transition-all cursor-pointer ${
+                    className={`p-3.5 rounded-xl border text-left flex flex-col items-center sm:items-start gap-1.5 transition-all cursor-pointer ${
                       isSelected
                         ? 'border-[#7A1438] bg-[#FAF2EB] text-[#4A0E17] font-semibold'
                         : 'border-[#EBE4DD] bg-white text-neutral-700 hover:border-neutral-400'
@@ -600,20 +607,20 @@ export const CheckoutPage: React.FC = () => {
                     <Icon
                       className={`w-4 h-4 ${isSelected ? 'text-[#7A1438]' : 'text-neutral-500'}`}
                     />
-                    <span className="text-xs">{m.label}</span>
+                    <span className="typo-btn-sm text-center sm:text-left">{m.label}</span>
                   </button>
                 );
               })}
             </div>
 
-            <div className="p-4 bg-[#FAF7F5] rounded-lg border border-[#EBE4DD] mt-3">
+            <div className="p-4 bg-[#FAF7F5] rounded-xl border border-[#EBE4DD] mt-3">
               {paymentMethod === 'UPI' && (
                 <div className="space-y-4">
-                  <div className="flex items-center gap-3 text-xs">
+                  <div className="flex flex-wrap items-center gap-2.5">
                     <button
                       type="button"
                       onClick={() => setUpiOption('qr')}
-                      className={`px-3 py-1.5 rounded-md font-medium transition-colors cursor-pointer ${
+                      className={`min-h-9 px-3.5 py-1.5 rounded-lg typo-btn-sm transition-colors cursor-pointer ${
                         upiOption === 'qr'
                           ? 'bg-[#5B112B] text-white'
                           : 'bg-white text-neutral-700 border border-[#EBE4DD]'
@@ -624,7 +631,7 @@ export const CheckoutPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => setUpiOption('id')}
-                      className={`px-3 py-1.5 rounded-md font-medium transition-colors cursor-pointer ${
+                      className={`min-h-9 px-3.5 py-1.5 rounded-lg typo-btn-sm transition-colors cursor-pointer ${
                         upiOption === 'id'
                           ? 'bg-[#5B112B] text-white'
                           : 'bg-white text-neutral-700 border border-[#EBE4DD]'
@@ -635,8 +642,8 @@ export const CheckoutPage: React.FC = () => {
                   </div>
 
                   {upiOption === 'qr' ? (
-                    <div className="flex flex-col sm:flex-row items-center gap-5 p-3 bg-white rounded-lg border border-[#EBE4DD]">
-                      <div className="w-32 h-32 bg-white p-2 rounded-md border border-neutral-300 flex flex-col items-center justify-center shrink-0">
+                    <div className="flex flex-col sm:flex-row items-center gap-5 p-4 bg-white rounded-xl border border-[#EBE4DD]">
+                      <div className="w-32 h-32 bg-white p-2 rounded-lg border border-neutral-300 flex flex-col items-center justify-center shrink-0">
                         <svg
                           className="w-full h-full text-[#2D0A11]"
                           viewBox="0 0 100 100"
@@ -662,28 +669,28 @@ export const CheckoutPage: React.FC = () => {
                           <rect x="65" y="70" width="12" height="15" />
                           <rect x="80" y="80" width="10" height="10" />
                         </svg>
-                        <span className="text-[9px] font-mono font-bold text-neutral-600 mt-0.5">
-                          UPI BHARAT QR
+                        <span className="typo-badge text-neutral-600 mt-0.5">
+                          UPI QR
                         </span>
                       </div>
                       <div className="space-y-1.5 text-center sm:text-left">
-                        <p className="text-xs font-semibold text-neutral-900">
+                        <p className="typo-card-title text-neutral-900">
                           Scan to pay ₹{finalPayable.toLocaleString('en-IN')} with any UPI App
                         </p>
-                        <p className="text-[11px] text-neutral-500">
+                        <p className="typo-meta text-neutral-500">
                           Google Pay · PhonePe · Paytm · CRED · BHIM UPI
                         </p>
                         <div className="flex flex-wrap gap-2 pt-1 justify-center sm:justify-start">
-                          <span className="text-[10px] bg-slate-100 text-slate-800 px-2 py-0.5 rounded font-mono">
+                          <span className="typo-badge bg-slate-100 text-slate-800 px-2.5 py-0.5 rounded">
                             GPay
                           </span>
-                          <span className="text-[10px] bg-purple-100 text-purple-900 px-2 py-0.5 rounded font-mono">
+                          <span className="typo-badge bg-purple-100 text-purple-900 px-2.5 py-0.5 rounded">
                             PhonePe
                           </span>
-                          <span className="text-[10px] bg-blue-100 text-blue-900 px-2 py-0.5 rounded font-mono">
+                          <span className="typo-badge bg-blue-100 text-blue-900 px-2.5 py-0.5 rounded">
                             Paytm
                           </span>
-                          <span className="text-[10px] bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded font-mono">
+                          <span className="typo-badge bg-emerald-100 text-emerald-900 px-2.5 py-0.5 rounded">
                             CRED
                           </span>
                         </div>
@@ -691,7 +698,7 @@ export const CheckoutPage: React.FC = () => {
                     </div>
                   ) : (
                     <div className="space-y-2">
-                      <label className="text-xs font-semibold text-neutral-800 block">
+                      <label className="typo-label text-neutral-800 block">
                         Enter UPI ID / VPA
                       </label>
                       <div className="flex gap-2">
@@ -700,17 +707,17 @@ export const CheckoutPage: React.FC = () => {
                           value={upiIdInput}
                           onChange={(e) => setUpiIdInput(e.target.value)}
                           placeholder="yourname@upi"
-                          className="flex-1 text-xs p-2.5 bg-white border border-[#EBE4DD] rounded-md font-mono"
+                          className="typo-input flex-1 bg-white"
                         />
                         <button
                           type="button"
                           onClick={() => addToast('UPI ID Verified!')}
-                          className="px-4 py-2 text-xs font-semibold text-[#5B112B] bg-[#F3ECE7] rounded-md cursor-pointer"
+                          className="min-h-11 px-4 typo-btn-sm text-[#5B112B] bg-[#F3ECE7] rounded-lg cursor-pointer shrink-0"
                         >
                           Verify ID
                         </button>
                       </div>
-                      <p className="text-[11px] text-neutral-500">
+                      <p className="typo-meta text-neutral-500">
                         A payment collect request will be sent to your UPI app.
                       </p>
                     </div>
@@ -719,9 +726,9 @@ export const CheckoutPage: React.FC = () => {
               )}
 
               {paymentMethod === 'Card' && (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   <div>
-                    <label className="text-xs font-semibold text-neutral-700 block mb-1">
+                    <label className="typo-label text-neutral-700 block mb-1.5">
                       Card Number
                     </label>
                     <input
@@ -729,12 +736,12 @@ export const CheckoutPage: React.FC = () => {
                       value={cardNumber}
                       onChange={(e) => setCardNumber(e.target.value)}
                       placeholder="XXXX XXXX XXXX XXXX"
-                      className="w-full text-xs p-2.5 bg-white border border-[#EBE4DD] rounded-md font-mono"
+                      className="typo-input bg-white typo-tabular"
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="text-xs font-semibold text-neutral-700 block mb-1">
+                      <label className="typo-label text-neutral-700 block mb-1.5">
                         Valid Thru (MM/YY)
                       </label>
                       <input
@@ -742,11 +749,11 @@ export const CheckoutPage: React.FC = () => {
                         value={cardExpiry}
                         onChange={(e) => setCardExpiry(e.target.value)}
                         placeholder="MM/YY"
-                        className="w-full text-xs p-2.5 bg-white border border-[#EBE4DD] rounded-md font-mono"
+                        className="typo-input bg-white typo-tabular"
                       />
                     </div>
                     <div>
-                      <label className="text-xs font-semibold text-neutral-700 block mb-1">
+                      <label className="typo-label text-neutral-700 block mb-1.5">
                         CVV
                       </label>
                       <input
@@ -755,12 +762,12 @@ export const CheckoutPage: React.FC = () => {
                         value={cardCvv}
                         onChange={(e) => setCardCvv(e.target.value)}
                         placeholder="•••"
-                        className="w-full text-xs p-2.5 bg-white border border-[#EBE4DD] rounded-md font-mono"
+                        className="typo-input bg-white typo-tabular"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-neutral-700 block mb-1">
+                    <label className="typo-label text-neutral-700 block mb-1.5">
                       Name on Card
                     </label>
                     <input
@@ -768,16 +775,16 @@ export const CheckoutPage: React.FC = () => {
                       value={cardName}
                       onChange={(e) => setCardName(e.target.value)}
                       placeholder="Name as printed on card"
-                      className="w-full text-xs p-2.5 bg-white border border-[#EBE4DD] rounded-md uppercase"
+                      className="typo-input bg-white uppercase"
                     />
                   </div>
                 </div>
               )}
 
               {paymentMethod === 'Netbanking' && (
-                <div className="space-y-3 text-xs">
-                  <p className="font-semibold text-neutral-800">Popular Indian Banks:</p>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div className="space-y-3">
+                  <p className="typo-label text-neutral-800">Popular Indian Banks:</p>
+                  <div className="grid grid-cols-1 min-[420px]:grid-cols-2 sm:grid-cols-3 gap-2.5">
                     {[
                       'HDFC Bank',
                       'ICICI Bank',
@@ -790,7 +797,7 @@ export const CheckoutPage: React.FC = () => {
                         key={b}
                         type="button"
                         onClick={() => addToast(`Selected ${b}`)}
-                        className="p-2.5 bg-white hover:bg-[#F3ECE7] border border-[#EBE4DD] rounded-md text-left font-medium text-neutral-800 transition-colors cursor-pointer"
+                        className="min-h-10 p-2.5 bg-white hover:bg-[#F3ECE7] border border-[#EBE4DD] rounded-lg text-left typo-btn-sm text-neutral-800 transition-colors cursor-pointer"
                       >
                         {b}
                       </button>
@@ -800,15 +807,15 @@ export const CheckoutPage: React.FC = () => {
               )}
 
               {paymentMethod === 'COD' && (
-                <div className="space-y-2 text-xs">
+                <div className="space-y-2 typo-body-sm">
                   <div className="flex items-center gap-2 text-amber-900 font-semibold">
-                    <Banknote className="w-4 h-4 text-amber-700" />
+                    <Banknote className="w-4 h-4 text-amber-700 shrink-0" />
                     <span>Cash on Delivery (COD) Selected</span>
                   </div>
-                  <p className="text-neutral-600 leading-relaxed font-light">
+                  <p className="text-neutral-600">
                     Pay in cash or via UPI QR at your doorstep upon arrival in {activeAddressLabel}.
                   </p>
-                  <p className="text-[11px] text-emerald-800 font-medium">
+                  <p className="typo-meta text-emerald-800 font-semibold">
                     ✓ Zero extra COD handling fee for orders above ₹999
                   </p>
                 </div>
@@ -819,29 +826,29 @@ export const CheckoutPage: React.FC = () => {
 
         {/* Right 5 Columns: Order Summary & Action */}
         <div className="lg:col-span-5 lg:sticky lg:top-24 space-y-6">
-          <div className="bg-white p-6 rounded-xl border border-[#EBE4DD] shadow-2xs space-y-5">
-            <h3 className="font-serif text-lg font-bold text-neutral-900 border-b border-[#EBE4DD] pb-3">
+          <div className="bg-white p-5 sm:p-6 rounded-2xl border border-[#EBE4DD] shadow-2xs space-y-5">
+            <h3 className="typo-h3 text-neutral-900 border-b border-[#EBE4DD] pb-3">
               Order Receipt ({cart.length} {cart.length === 1 ? 'creation' : 'creations'})
             </h3>
 
-            <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+            <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
               {cart.map((item) => (
-                <div key={item.id} className="flex gap-3 text-xs">
+                <div key={item.id} className="flex gap-3">
                   <ProductImage
                     src={getVariantProductImage(item.product, item.selectedColor)}
                     alt={item.product.name}
                     category={item.product.category}
                     compact
-                    className="w-12 h-14 object-cover rounded-md bg-[#FAF7F5] shrink-0"
+                    className="w-14 h-16 object-cover rounded-lg bg-[#FAF7F5] shrink-0"
                   />
                   <div className="flex-1 min-w-0">
-                    <h5 className="font-semibold text-neutral-900 truncate">{item.product.name}</h5>
-                    <p className="text-[11px] text-neutral-500">
+                    <h5 className="typo-card-title text-neutral-900 truncate">{item.product.name}</h5>
+                    <p className="typo-meta text-neutral-500">
                       Qty: {item.quantity}
                       {item.selectedSize ? ` · Size: ${item.selectedSize}` : ''}
                       {item.selectedColor ? ` · ${item.selectedColor}` : ''}
                     </p>
-                    <p className="font-mono tabular-nums font-bold text-[#4A0E17] mt-0.5">
+                    <p className="typo-price text-[#4A0E17] mt-0.5">
                       ₹{(item.product.discountPrice * item.quantity).toLocaleString('en-IN')}
                     </p>
                   </div>
@@ -849,14 +856,14 @@ export const CheckoutPage: React.FC = () => {
               ))}
             </div>
 
-            <div className="p-3 bg-[#FAF7F5] rounded-lg border border-[#EBE4DD] flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Gift className="w-4 h-4 text-[#BE185D]" />
-                <div>
-                  <p className="text-xs font-semibold text-neutral-900">
+            <div className="p-3.5 bg-[#FAF7F5] rounded-xl border border-[#EBE4DD] flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Gift className="w-4 h-4 text-[#BE185D] shrink-0" />
+                <div className="min-w-0">
+                  <p className="typo-body-sm font-semibold text-neutral-900">
                     Artisan Gift Wrapping (+₹99)
                   </p>
-                  <p className="text-[10px] text-neutral-500">
+                  <p className="typo-meta text-neutral-500">
                     Includes handmade paper & gold ribbon
                   </p>
                 </div>
@@ -865,11 +872,11 @@ export const CheckoutPage: React.FC = () => {
                 type="checkbox"
                 checked={isGiftWrap}
                 onChange={(e) => setIsGiftWrap(e.target.checked)}
-                className="w-4 h-4 accent-[#7A1438] rounded"
+                className="w-4 h-4 accent-[#7A1438] rounded shrink-0"
               />
             </div>
 
-            <div className="space-y-2 text-xs font-mono tabular-nums pt-3 border-t border-[#F3ECE7]">
+            <div className="space-y-2 typo-body-sm typo-tabular pt-3 border-t border-[#F3ECE7]">
               <div className="flex justify-between text-neutral-600">
                 <span>Items Subtotal</span>
                 <span>₹{cartSubtotal.toLocaleString('en-IN')}</span>
@@ -886,11 +893,11 @@ export const CheckoutPage: React.FC = () => {
                   <span>-₹{couponDiscountAmount.toLocaleString('en-IN')}</span>
                 </div>
               )}
-              <div className="flex justify-between text-neutral-600">
-                <span>Delivery ({activeAddressLabel})</span>
-                <span>
+              <div className="flex justify-between gap-2 text-neutral-600">
+                <span className="truncate">Delivery ({activeAddressLabel})</span>
+                <span className="shrink-0">
                   {deliveryFee === 0 ? (
-                    <strong className="text-emerald-700 font-sans">FREE</strong>
+                    <strong className="text-emerald-700 font-semibold">FREE</strong>
                   ) : (
                     `₹${deliveryFee}`
                   )}
@@ -902,9 +909,9 @@ export const CheckoutPage: React.FC = () => {
                   <span>₹99</span>
                 </div>
               )}
-              <div className="flex justify-between text-base font-bold text-[#4A0E17] pt-3 border-t border-[#EBE4DD] font-sans">
+              <div className="flex justify-between items-baseline typo-h4 text-[#4A0E17] pt-3 border-t border-[#EBE4DD]">
                 <span>Total Amount</span>
-                <span className="font-mono tabular-nums">
+                <span className="typo-price-lg text-[#4A0E17]">
                   ₹{finalPayable.toLocaleString('en-IN')}
                 </span>
               </div>
@@ -913,22 +920,22 @@ export const CheckoutPage: React.FC = () => {
             <button
               onClick={handlePlaceOrder}
               disabled={isProcessing}
-              className="w-full py-3.5 px-4 text-xs font-bold text-white bg-[#5B112B] hover:bg-[#430C1F] disabled:bg-neutral-400 rounded-md transition-all flex items-center justify-center gap-2 shadow-md transform hover:-translate-y-0.5 cursor-pointer"
+              className="min-h-12 w-full py-3.5 px-4 typo-btn text-white bg-[#5B112B] hover:bg-[#430C1F] disabled:bg-neutral-400 rounded-xl transition-all flex items-center justify-center gap-2 shadow-md transform hover:-translate-y-0.5 cursor-pointer"
             >
               {isProcessing ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin shrink-0" />
                   <span>Authorizing Secure Transaction...</span>
                 </>
               ) : (
                 <>
-                  <Lock className="w-4 h-4" />
+                  <Lock className="w-4 h-4 shrink-0" />
                   <span>Confirm Order & Pay ₹{finalPayable.toLocaleString('en-IN')}</span>
                 </>
               )}
             </button>
 
-            <div className="space-y-1 text-center text-[11px] text-neutral-500">
+            <div className="space-y-1 text-center typo-meta text-neutral-500">
               <p>100% Purchase Protection Guarantee</p>
               <p>Delivering to {activeAddressLabel}</p>
             </div>

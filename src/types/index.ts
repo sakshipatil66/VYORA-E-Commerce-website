@@ -148,13 +148,22 @@ export interface Order {
   courierName: string;
 }
 
+export type AuthModalMode = 'signin' | 'signup' | 'forgot' | 'reset';
+
+export type DashboardTab = 'overview' | 'orders' | 'wishlist' | 'addresses' | 'settings';
+
 export interface User {
   id: string;
   name: string;
   email: string;
   phone: string;
+  avatarUrl?: string;
   role: 'customer' | 'admin';
   clubTier: 'Silver' | 'Gold' | 'Platinum';
   clubPoints: number;
+  shoppingLocationId?: string;
+  notifyOrderUpdates?: boolean;
+  notifyPromotions?: boolean;
+  createdAt?: string;
   addresses: Address[];
 }

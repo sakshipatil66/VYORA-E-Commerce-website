@@ -114,38 +114,34 @@ export const ProductCarousel: React.FC<ProductCarouselProps> = ({
 
   const wrapperClasses =
     bgVariant === 'card'
-      ? 'bg-white rounded-2xl border border-[#EAE0D6] p-5 sm:p-7 shadow-2xs'
+      ? 'bg-white rounded-2xl border border-[#EAE0D6] p-4 sm:p-6 lg:p-7 shadow-2xs'
       : bgVariant === 'ivory'
-      ? 'bg-[#F6EFE9]/75 rounded-2xl border border-[#EAE0D6] p-5 sm:p-7'
+      ? 'bg-[#F6EFE9]/75 rounded-2xl border border-[#EAE0D6] p-4 sm:p-6 lg:p-7'
       : '';
 
   return (
     <div className={wrapperClasses}>
       {/* Carousel Header */}
       <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 mb-6">
-        <div className="space-y-1 max-w-2xl">
+        <div className="space-y-1.5 max-w-2xl">
           {eyebrow && (
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#7A1438]">
+            <div className="flex items-center gap-1.5 typo-eyebrow text-[#7A1438]">
               <Sparkles className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
               <span>{eyebrow}</span>
             </div>
           )}
-          <h2
-            className={`font-serif font-bold text-neutral-900 leading-tight ${
-              compactHeader ? 'text-xl sm:text-2xl' : 'text-2xl sm:text-3xl'
-            }`}
-          >
+          <h2 className={`${compactHeader ? 'typo-h3' : 'typo-h2'} text-neutral-900`}>
             {title}
           </h2>
           {subtitle && (
-            <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed font-light">
+            <p className="typo-body text-neutral-600">
               {subtitle}
             </p>
           )}
         </div>
 
         {/* Right Controls: Optional Filter Pills + Prev/Next Arrows + View All CTA */}
-        <div className="flex flex-wrap items-center justify-between lg:justify-end gap-3 shrink-0">
+        <div className="flex flex-wrap items-center justify-between lg:justify-end gap-3 shrink-0 max-w-full">
           {headerRightExtra}
 
           <div className="flex items-center gap-2">
@@ -156,7 +152,7 @@ export const ProductCarousel: React.FC<ProductCarouselProps> = ({
                 onClick={() => scrollBySlide(-1)}
                 disabled={!canScrollPrev}
                 aria-label={`Previous slide in ${title}`}
-                className="w-9 h-9 rounded-full border border-[#DFD2C5] bg-white hover:bg-[#4A0E17] text-[#380811] hover:text-white disabled:opacity-35 disabled:pointer-events-none flex items-center justify-center transition-all shadow-2xs cursor-pointer"
+                className="w-10 h-10 rounded-full border border-[#DFD2C5] bg-white hover:bg-[#4A0E17] text-[#380811] hover:text-white disabled:opacity-35 disabled:pointer-events-none flex items-center justify-center transition-all shadow-2xs cursor-pointer"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -165,7 +161,7 @@ export const ProductCarousel: React.FC<ProductCarouselProps> = ({
                 onClick={() => scrollBySlide(1)}
                 disabled={!canScrollNext}
                 aria-label={`Next slide in ${title}`}
-                className="w-9 h-9 rounded-full border border-[#DFD2C5] bg-white hover:bg-[#4A0E17] text-[#380811] hover:text-white disabled:opacity-35 disabled:pointer-events-none flex items-center justify-center transition-all shadow-2xs cursor-pointer"
+                className="w-10 h-10 rounded-full border border-[#DFD2C5] bg-white hover:bg-[#4A0E17] text-[#380811] hover:text-white disabled:opacity-35 disabled:pointer-events-none flex items-center justify-center transition-all shadow-2xs cursor-pointer"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -175,7 +171,7 @@ export const ProductCarousel: React.FC<ProductCarouselProps> = ({
               <button
                 type="button"
                 onClick={onViewAll}
-                className="inline-flex items-center gap-1.5 py-2 px-4 rounded-full bg-[#4A0E17] hover:bg-[#7A1438] text-[#FAF7F5] text-xs font-semibold transition-all shadow-2xs cursor-pointer"
+                className="inline-flex items-center gap-1.5 min-h-10 py-2 px-4 rounded-full bg-[#4A0E17] hover:bg-[#7A1438] text-[#FAF7F5] typo-btn-sm transition-all shadow-2xs cursor-pointer"
               >
                 <span>{viewAllLabel}</span>
                 <ArrowRight className="w-3.5 h-3.5 text-[#D4AF37]" />
@@ -189,12 +185,12 @@ export const ProductCarousel: React.FC<ProductCarouselProps> = ({
       <div className="relative">
         <div
           ref={trackRef}
-          className="flex gap-4 sm:gap-5 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex gap-4 sm:gap-5 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-2 no-scrollbar"
         >
           {products.map((prod) => (
             <div
               key={prod.id}
-              className="w-[80%] sm:w-[46.5%] md:w-[31.5%] lg:w-[23.6%] shrink-0 snap-start"
+              className="w-[82%] min-[480px]:w-[62%] sm:w-[47%] md:w-[31.5%] lg:w-[23.5%] shrink-0 snap-start"
             >
               <ProductCard product={prod} />
             </div>
@@ -204,7 +200,7 @@ export const ProductCarousel: React.FC<ProductCarouselProps> = ({
 
       {/* Interactive Pagination Dots & Slide Counter */}
       {totalSlides > 1 && (
-        <div className="mt-5 flex items-center justify-between gap-4">
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
           <div
             role="tablist"
             aria-label={`${title} carousel pagination`}
@@ -220,17 +216,17 @@ export const ProductCarousel: React.FC<ProductCarouselProps> = ({
                   aria-selected={isCurrent}
                   aria-label={`Go to slide ${idx + 1} of ${totalSlides}`}
                   onClick={() => scrollToSlideIndex(idx)}
-                  className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
+                  className={`h-2.5 rounded-full transition-all duration-300 cursor-pointer ${
                     isCurrent
                       ? 'w-7 bg-[#5B112B]'
-                      : 'w-2 bg-[#D8C7B8] hover:bg-[#8C6D58]'
+                      : 'w-2.5 bg-[#D8C7B8] hover:bg-[#8C6D58]'
                   }`}
                 />
               );
             })}
           </div>
 
-          <div className="flex items-center gap-3 text-[11px] text-neutral-500 font-mono tabular-nums">
+          <div className="flex items-center gap-3 typo-meta text-neutral-500 typo-tabular">
             <span>
               Slide {activeSlide + 1} / {totalSlides} · {products.length} items
             </span>
@@ -238,7 +234,7 @@ export const ProductCarousel: React.FC<ProductCarouselProps> = ({
               <button
                 type="button"
                 onClick={onViewAll}
-                className="font-sans font-semibold text-[#7A1438] hover:underline cursor-pointer"
+                className="font-semibold text-[#7A1438] hover:underline cursor-pointer"
               >
                 {viewAllLabel} →
               </button>

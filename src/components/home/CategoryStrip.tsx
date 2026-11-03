@@ -108,7 +108,7 @@ export const CategoryStrip: React.FC = () => {
   };
 
   return (
-    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-16">
+    <section className="vyora-container vyora-section">
       {/* Editorial Section Header */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
@@ -118,28 +118,28 @@ export const CategoryStrip: React.FC = () => {
         className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6"
       >
         <div>
-          <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-[0.22em] text-[#7A1438]">
+          <p className="typo-eyebrow text-[#7A1438]">
             Twelve Curated Pavilions
           </p>
-          <h2 className="font-serif text-2xl sm:text-4xl font-bold text-neutral-900 mt-1.5">
+          <h2 className="typo-h2 text-neutral-900 mt-1.5">
             Explore by Category
           </h2>
-          <p className="text-xs sm:text-sm text-neutral-600 mt-1 max-w-xl">
+          <p className="typo-body text-neutral-600 mt-1.5 max-w-xl">
             From women’s & men’s designer couture and fine jewellery to acoustic electronics, pure skincare, footwear, and home décor.
           </p>
         </div>
 
         <button
           onClick={() => handleSelect('all')}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#5B112B] hover:text-[#380811] group cursor-pointer shrink-0"
+          className="inline-flex items-center gap-1.5 typo-btn text-[#5B112B] hover:text-[#380811] group cursor-pointer shrink-0 self-start sm:self-auto"
         >
           <span className="underline underline-offset-4">Browse Complete Catalog</span>
-          <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
+          <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
         </button>
       </motion.div>
 
       {/* Quick Spotlight Category Buttons (Women, Men, Jewellery, Electronics, Beauty, Footwear, Home Decor) */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-5">
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-5">
         {[
           { label: 'Women’s Fashion', cat: 'fashion' as CategoryId, sub: '__women__' },
           { label: 'Men’s Ethnic', cat: 'fashion' as CategoryId, sub: "Men's Ethnic Wear" },
@@ -153,7 +153,7 @@ export const CategoryStrip: React.FC = () => {
             key={btn.label}
             type="button"
             onClick={() => handleSelect(btn.cat, btn.sub)}
-            className="py-2 px-4 rounded-full bg-white hover:bg-[#4A0E17] text-[#380811] hover:text-white border border-[#DFD2C5] text-xs font-semibold whitespace-nowrap transition-colors shadow-2xs cursor-pointer"
+            className="min-h-10 py-2 px-4 rounded-full bg-white hover:bg-[#4A0E17] text-[#380811] hover:text-white border border-[#DFD2C5] typo-btn-sm whitespace-nowrap shrink-0 transition-colors shadow-2xs cursor-pointer"
           >
             {btn.label}
           </button>
@@ -161,7 +161,7 @@ export const CategoryStrip: React.FC = () => {
       </div>
 
       {/* Rich Portrait Image Category Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3.5 sm:gap-5">
         {CATEGORIES.map((cat, idx) => (
           <motion.button
             key={cat.id}
@@ -188,19 +188,19 @@ export const CategoryStrip: React.FC = () => {
             <div className="absolute inset-2 rounded-lg border border-[#D4AF37]/0 group-hover:border-[#D4AF37]/45 transition-colors duration-300 pointer-events-none" />
 
             {/* Category Title & Count */}
-            <div className="absolute inset-x-0 bottom-0 p-3.5 sm:p-4 flex flex-col justify-end">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-[#D4AF37] tabular-nums">
+            <div className="absolute inset-x-0 bottom-0 p-3 sm:p-4 flex flex-col justify-end">
+              <span className="typo-badge text-[#D4AF37] typo-tabular">
                 {cat.count}
               </span>
-              <h3 className="font-serif text-sm sm:text-base font-bold text-white leading-snug mt-0.5">
+              <h3 className="font-serif text-base sm:text-lg font-bold text-white leading-snug mt-0.5">
                 {cat.name}
               </h3>
-              <p className="text-[11px] text-rose-100/80 line-clamp-1 mt-0.5">
+              <p className="typo-meta text-rose-100/80 line-clamp-1 mt-0.5">
                 {cat.subtitle}
               </p>
-              <div className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-[#D4AF37] opacity-85 group-hover:opacity-100 transition-all">
+              <div className="mt-2 inline-flex items-center gap-1 typo-meta font-semibold text-[#D4AF37] opacity-90 group-hover:opacity-100 transition-all">
                 <span>Explore</span>
-                <ArrowRight className="w-3 h-3 transition-transform duration-300 group-hover:translate-x-1" />
+                <ArrowRight className="w-3.5 h-3.5 transition-transform duration-300 group-hover:translate-x-1" />
               </div>
             </div>
           </motion.button>

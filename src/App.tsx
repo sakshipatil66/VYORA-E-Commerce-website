@@ -7,6 +7,7 @@ import { Footer } from './components/common/Footer';
 import { SearchModal } from './components/common/SearchModal';
 import { CartDrawer } from './components/cart/CartDrawer';
 import { AuthModal } from './components/auth/AuthModal';
+import { ProtectedRouteGate } from './components/auth/ProtectedRouteGate';
 import { QuickViewModal } from './components/common/QuickViewModal';
 import { CompareDrawer } from './components/common/CompareDrawer';
 import { ProductCarousel } from './components/common/ProductCarousel';
@@ -120,7 +121,7 @@ const CategoryProductSlidesBlock: React.FC<{
         bgVariant={index % 2 === 0 ? 'card' : 'ivory'}
         compactHeader
         headerRightExtra={
-          <div className="flex items-center gap-1 bg-[#EFE6DD] p-1 rounded-full">
+          <div className="flex items-center gap-1 bg-[#EFE6DD] p-1 rounded-full overflow-x-auto no-scrollbar max-w-full">
             {(
               [
                 { id: 'all', label: `All (${categoryItems.length})` },
@@ -132,7 +133,7 @@ const CategoryProductSlidesBlock: React.FC<{
                 key={t.id}
                 type="button"
                 onClick={() => setSubTab(t.id)}
-                className={`py-1 px-2.5 rounded-full text-[11px] font-semibold transition-colors cursor-pointer ${
+                className={`py-1.5 px-3 rounded-full typo-meta font-semibold whitespace-nowrap shrink-0 transition-colors cursor-pointer ${
                   subTab === t.id
                     ? 'bg-white text-[#4A0E17] shadow-2xs'
                     : 'text-[#5C493E] hover:text-[#2D0A11]'
@@ -222,24 +223,24 @@ const HomePageContent: React.FC = () => {
       <CategoryStrip />
 
       {/* 4. Pune, Maharashtra, India Priority Dispatch & Delivery Assurance Strip */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-6">
-        <div className="rounded-2xl bg-gradient-to-r from-[#FAF2EB] via-white to-[#FAF2EB] border border-[#E2D3C5] p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xs">
+      <section className="vyora-container pt-2 pb-8">
+        <div className="rounded-2xl bg-gradient-to-r from-[#FAF2EB] via-white to-[#FAF2EB] border border-[#E2D3C5] p-4 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-2xs">
           <div className="flex items-start sm:items-center gap-3.5">
             <div className="w-10 h-10 rounded-full bg-[#4A0E17] text-[#D4AF37] flex items-center justify-center shrink-0">
               <MapPin className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex flex-wrap items-center gap-2 text-xs text-neutral-600">
-                <span className="font-semibold uppercase tracking-wider text-[10px] text-[#7A1438]">
+              <div className="flex flex-wrap items-center gap-2 typo-meta text-neutral-600">
+                <span className="typo-label text-[#7A1438]">
                   Active Shopping & Delivery Location
                 </span>
                 <span aria-hidden="true">·</span>
-                <span className="inline-flex items-center gap-1 text-emerald-800 font-medium">
+                <span className="inline-flex items-center gap-1 text-emerald-800 font-semibold">
                   <Truck className="w-3.5 h-3.5" />
                   Priority Dispatch by {estDate}
                 </span>
               </div>
-              <p className="font-serif text-base sm:text-lg font-bold text-neutral-900 mt-0.5">
+              <p className="typo-h3 text-neutral-900 mt-0.5">
                 {locationLabel}
               </p>
             </div>
@@ -249,14 +250,14 @@ const HomePageContent: React.FC = () => {
             <button
               type="button"
               onClick={requestLocationPicker}
-              className="py-2 px-4 rounded-full bg-[#4A0E17] hover:bg-[#380811] text-white text-xs font-semibold transition-colors cursor-pointer"
+              className="min-h-10 py-2 px-4 rounded-full bg-[#4A0E17] hover:bg-[#380811] text-white typo-btn-sm transition-colors cursor-pointer"
             >
               Change Location
             </button>
             <button
               type="button"
               onClick={() => navigateToCategory('all')}
-              className="inline-flex items-center gap-1.5 py-2 px-4 rounded-full bg-white hover:bg-[#F3ECE7] text-[#380811] border border-[#D8C7B8] text-xs font-semibold transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 min-h-10 py-2 px-4 rounded-full bg-white hover:bg-[#F3ECE7] text-[#380811] border border-[#D8C7B8] typo-btn-sm transition-colors cursor-pointer"
             >
               <span>Shop All {products.length} Creations</span>
               <ArrowRight className="w-3.5 h-3.5 text-[#7A1438]" />
@@ -268,7 +269,7 @@ const HomePageContent: React.FC = () => {
       {/* 5. Multi-Slide Carousel 1: Trending Products */}
       <section
         id="trending-products-section"
-        className="scroll-mt-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12 border-t border-[#EAE0D6]"
+        className="scroll-mt-24 vyora-container vyora-section-sm border-t border-[#EAE0D6]"
       >
         <ProductCarousel
           eyebrow="Patron Favorites · Trending Across India"
@@ -283,7 +284,7 @@ const HomePageContent: React.FC = () => {
             <div
               role="tablist"
               aria-label="Filter trending creations by department"
-              className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full"
+              className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 max-w-full"
             >
               {TRENDING_TABS.map((tab) => {
                 const isSelected = activeTab === tab.id;
@@ -294,7 +295,7 @@ const HomePageContent: React.FC = () => {
                     role="tab"
                     aria-selected={isSelected}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`py-1.5 px-3 rounded-full text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                    className={`min-h-9 py-1.5 px-3.5 rounded-full typo-btn-sm whitespace-nowrap shrink-0 transition-all cursor-pointer ${
                       isSelected
                         ? 'bg-[#4A0E17] text-[#FAF7F5] shadow-2xs'
                         : 'bg-[#F2EAE2] text-[#4A3E39] hover:bg-[#E7DBD0]'
@@ -312,7 +313,7 @@ const HomePageContent: React.FC = () => {
       {/* 6. Multi-Slide Carousel 2: Best Sellers */}
       <section
         id="best-sellers-section"
-        className="scroll-mt-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12 border-t border-[#EAE0D6]"
+        className="scroll-mt-24 vyora-container vyora-section-sm border-t border-[#EAE0D6]"
       >
         <ProductCarousel
           eyebrow="Most Acclaimed · Highest Patron Reviews"
@@ -331,7 +332,7 @@ const HomePageContent: React.FC = () => {
       {/* 8. Multi-Slide Carousel 3: Featured Products */}
       <section
         id="featured-products-section"
-        className="scroll-mt-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12 border-t border-[#EAE0D6]"
+        className="scroll-mt-24 vyora-container vyora-section-sm border-t border-[#EAE0D6]"
       >
         <ProductCarousel
           eyebrow="Curator’s Spotlight · Signature Editions"
@@ -348,27 +349,27 @@ const HomePageContent: React.FC = () => {
       <FlashSaleSection />
 
       {/* 10. Shop Every Category — Dedicated Multi-Slide Carousels for All 12 Categories */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-16 space-y-8 border-t border-[#EAE0D6]">
+      <section className="vyora-container vyora-section space-y-8 border-t border-[#EAE0D6]">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div className="space-y-1.5 max-w-2xl">
-            <div className="flex items-center gap-2 text-[11px] sm:text-xs font-semibold uppercase tracking-[0.22em] text-[#7A1438]">
-              <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+            <div className="flex items-center gap-2 typo-eyebrow text-[#7A1438]">
+              <Sparkles className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
               <span>12 Curated Marketplace Pavilions · Multi-Slide Showcases</span>
             </div>
-            <h2 className="font-serif text-2xl sm:text-4xl font-bold text-neutral-900">
+            <h2 className="typo-h2 text-neutral-900">
               Explore Every Category Slide-by-Slide
             </h2>
-            <p className="text-xs sm:text-sm text-neutral-600 leading-relaxed font-light">
+            <p className="typo-body text-neutral-600">
               Every department below features multiple horizontal product slides strictly belonging to that category, complete with navigation arrows, pagination dots, and a direct View All page.
             </p>
           </div>
           <button
             type="button"
             onClick={() => navigateToCategory('all')}
-            className="inline-flex items-center gap-2 py-2.5 px-5 rounded-full bg-[#4A0E17] hover:bg-[#380811] text-white text-xs font-semibold transition-colors self-start md:self-auto cursor-pointer"
+            className="inline-flex items-center gap-2 min-h-11 py-2.5 px-5 rounded-full bg-[#4A0E17] hover:bg-[#380811] text-white typo-btn transition-colors self-start md:self-auto cursor-pointer"
           >
             <span>Open Complete {products.length}-Item Catalog</span>
-            <ArrowRight className="w-3.5 h-3.5 text-[#D4AF37]" />
+            <ArrowRight className="w-4 h-4 text-[#D4AF37]" />
           </button>
         </div>
 
@@ -386,23 +387,23 @@ const HomePageContent: React.FC = () => {
       </section>
 
       {/* 11. Regal Festive Privilege Promotional Banner */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <section className="vyora-container vyora-section-sm">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, amount: 0.2 }}
           transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-          className="relative rounded-2xl overflow-hidden bg-gradient-to-r from-[#2D070F] via-[#5B112B] to-[#7A1438] text-white p-8 sm:p-12 shadow-xl border border-[#D4AF37]/35 flex flex-col lg:flex-row items-center justify-between gap-8"
+          className="relative rounded-2xl overflow-hidden bg-gradient-to-r from-[#2D070F] via-[#5B112B] to-[#7A1438] text-white p-6 sm:p-10 lg:p-12 shadow-xl border border-[#D4AF37]/35 flex flex-col lg:flex-row items-center justify-between gap-8"
         >
           <div className="space-y-3 text-center lg:text-left max-w-2xl">
-            <div className="inline-flex items-center gap-2 text-[#D4AF37] font-semibold text-[11px] uppercase tracking-[0.22em]">
-              <Gift className="w-3.5 h-3.5" />
+            <div className="inline-flex items-center gap-2 text-[#D4AF37] typo-eyebrow">
+              <Gift className="w-4 h-4 shrink-0" />
               <span>Grand Season Privilege · Dispatching from Pune, Maharashtra, India</span>
             </div>
-            <h3 className="font-serif text-2xl sm:text-4xl font-bold tracking-tight">
+            <h2 className="typo-h2 text-white">
               Flat ₹1,000 Off on Orders Above ₹7,500
-            </h3>
-            <p className="text-xs sm:text-sm text-rose-100/85 font-light leading-relaxed">
+            </h2>
+            <p className="typo-body text-rose-100/85">
               Applicable across handloom sarees & sherwanis, Polki jewellery, teakwood Bluetooth speakers, leather travel bags, and brass decor — with insured delivery to {locationLabel}.
             </p>
           </div>
@@ -413,7 +414,7 @@ const HomePageContent: React.FC = () => {
                 applyCoupon('ROYAL1000');
                 navigateToCategory('all');
               }}
-              className="py-3.5 px-7 bg-[#FAF7F5] hover:bg-[#D4AF37] text-[#2A070F] font-semibold text-xs sm:text-sm rounded-full shadow-md flex items-center gap-2 transition-all duration-300 transform hover:-translate-y-0.5 cursor-pointer"
+              className="min-h-11 py-3 px-6 bg-[#FAF7F5] hover:bg-[#D4AF37] text-[#2A070F] typo-btn rounded-full shadow-md flex items-center gap-2 transition-all duration-300 transform hover:-translate-y-0.5 cursor-pointer"
             >
               <Tag className="w-4 h-4 text-[#7A1438]" />
               <span>Apply Code: ROYAL1000</span>
@@ -423,7 +424,7 @@ const HomePageContent: React.FC = () => {
                 setActivePage('offers');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
-              className="py-3.5 px-6 bg-white/10 hover:bg-white/20 text-white border border-white/25 font-semibold text-xs sm:text-sm rounded-full transition-colors cursor-pointer"
+              className="min-h-11 py-3 px-6 bg-white/10 hover:bg-white/20 text-white border border-white/25 typo-btn rounded-full transition-colors cursor-pointer"
             >
               All Privilege Codes
             </button>
@@ -437,7 +438,7 @@ const HomePageContent: React.FC = () => {
       {/* 13. Multi-Slide Carousel 4: New Arrivals */}
       <section
         id="new-arrivals-section"
-        className="scroll-mt-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12 border-t border-[#EAE0D6]"
+        className="scroll-mt-24 vyora-container vyora-section-sm border-t border-[#EAE0D6]"
       >
         <ProductCarousel
           eyebrow="Freshly Curated · New Season Releases"
@@ -453,7 +454,7 @@ const HomePageContent: React.FC = () => {
       {/* 14. Multi-Slide Carousel 5: Recommended Products */}
       <section
         id="recommended-products-section"
-        className="scroll-mt-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12 border-t border-[#EAE0D6]"
+        className="scroll-mt-24 vyora-container vyora-section-sm border-t border-[#EAE0D6]"
       >
         <ProductCarousel
           eyebrow="Personalized Marketplace Picks · 4.8★+ Rated"
@@ -474,7 +475,7 @@ const HomePageContent: React.FC = () => {
 
       {/* 17. Recently Viewed Creations Carousel */}
       {recentProducts.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 border-t border-[#EAE0D6]">
+        <section className="vyora-container vyora-section-sm border-t border-[#EAE0D6]">
           <ProductCarousel
             eyebrow="Your Personal Trail"
             title="Recently Viewed Creations"
@@ -506,19 +507,76 @@ const MainLayout: React.FC = () => {
       case 'pdp':
         return <ProductDetailPage />;
       case 'checkout':
-        return <CheckoutPage />;
+        return (
+          <ProtectedRouteGate
+            targetPage="checkout"
+            title="Sign In for Secure Checkout"
+            description="Please sign in with your customer account or register a new profile to save your delivery address, earn loyalty points, and complete checkout."
+          >
+            <CheckoutPage />
+          </ProtectedRouteGate>
+        );
       case 'order_confirmation':
-        return <OrderConfirmationPage />;
+        return (
+          <ProtectedRouteGate
+            targetPage="order_confirmation"
+            title="Order Confirmation"
+            description="Sign in to view your confirmed order receipt and consignment dispatch details."
+          >
+            <OrderConfirmationPage />
+          </ProtectedRouteGate>
+        );
       case 'order_tracking':
-        return <OrderTrackingPage />;
+        return (
+          <ProtectedRouteGate
+            targetPage="order_tracking"
+            title="Live Consignment Tracking"
+            description="Sign in to your VYORA account to track live shipment checkpoints for your personal orders."
+          >
+            <OrderTrackingPage />
+          </ProtectedRouteGate>
+        );
       case 'my_orders':
-        return <MyOrdersPage />;
+        return (
+          <ProtectedRouteGate
+            targetPage="my_orders"
+            title="My Orders & Consignments"
+            description="Sign in to access your personal order history, tax invoices, and live courier tracking."
+          >
+            <MyOrdersPage />
+          </ProtectedRouteGate>
+        );
       case 'wishlist':
-        return <WishlistPage />;
+        return (
+          <ProtectedRouteGate
+            targetPage="wishlist"
+            title="Personal Wishlist Vault"
+            description="Sign in or create a customer account to view and manage the items saved to your private wishlist."
+          >
+            <WishlistPage />
+          </ProtectedRouteGate>
+        );
       case 'profile':
-        return <UserProfilePage />;
+        return (
+          <ProtectedRouteGate
+            targetPage="profile"
+            title="Customer Account Dashboard"
+            description="Sign in or register an account to view your personal profile, loyalty tier, saved addresses, wishlist, and account settings."
+          >
+            <UserProfilePage />
+          </ProtectedRouteGate>
+        );
       case 'admin':
-        return <AdminDashboard />;
+        return (
+          <ProtectedRouteGate
+            targetPage="admin"
+            title="Store Operations Console"
+            description="Administrator authentication is required to access the VYORA Store Operations Console."
+            requireAdmin
+          >
+            <AdminDashboard />
+          </ProtectedRouteGate>
+        );
       case 'offers':
         return <OffersPage />;
       case 'about':
@@ -562,18 +620,19 @@ const MainLayout: React.FC = () => {
       <CompareDrawer />
 
       {/* Toast Notification Stack */}
-      <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm pointer-events-none">
+      <div className="fixed bottom-4 right-4 left-4 sm:left-auto sm:bottom-5 sm:right-5 z-50 flex flex-col gap-2 sm:max-w-sm pointer-events-none">
         {toasts.map((t) => (
           <div
             key={t.id}
-            className="pointer-events-auto flex items-center justify-between gap-3 px-4 py-3 bg-[#380811] text-white text-xs rounded-xl shadow-2xl border border-[#D4AF37]/40 animate-in slide-in-from-bottom duration-200"
+            className="pointer-events-auto flex items-center justify-between gap-3 px-4 py-3 bg-[#380811] text-white typo-body-sm rounded-xl shadow-2xl border border-[#D4AF37]/40 animate-in slide-in-from-bottom duration-200"
           >
             <span>{t.message}</span>
             <button
               onClick={() => removeToast(t.id)}
-              className="text-rose-300 hover:text-white p-0.5 cursor-pointer"
+              aria-label="Dismiss notification"
+              className="text-rose-300 hover:text-white p-1 shrink-0 cursor-pointer"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
         ))}

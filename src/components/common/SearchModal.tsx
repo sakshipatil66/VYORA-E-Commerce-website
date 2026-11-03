@@ -64,39 +64,39 @@ export const SearchModal: React.FC = () => {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-12 sm:pt-20 px-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="w-full max-w-2xl bg-[#FAF7F5] rounded-2xl shadow-2xl border border-[#EBE4DD] overflow-hidden flex flex-col max-h-[85vh]">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-8 sm:pt-16 px-3 sm:px-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="w-full max-w-2xl bg-[#FAF7F5] rounded-2xl shadow-2xl border border-[#EBE4DD] overflow-hidden flex flex-col max-h-[88vh]">
         {/* Search Input Bar */}
-        <form onSubmit={handleFormSubmit} className="p-4 bg-white border-b border-[#EBE4DD] flex items-center gap-3">
+        <form onSubmit={handleFormSubmit} className="p-3.5 sm:p-4 bg-white border-b border-[#EBE4DD] flex items-center gap-2.5 sm:gap-3">
           <Search className="w-5 h-5 text-[#7A1438] shrink-0" />
           <input
             ref={inputRef}
             type="text"
             value={term}
             onChange={(e) => setTerm(e.target.value)}
-            placeholder="Search products, categories, brands, keywords, or product ID..."
-            className="w-full bg-transparent text-sm sm:text-base text-neutral-900 placeholder:text-neutral-400 focus:outline-none"
+            placeholder="Search products, categories, brands, keywords, or ID..."
+            className="w-full bg-transparent text-base text-neutral-900 placeholder:text-neutral-400 focus:outline-none"
           />
           {term && (
             <button
               type="button"
               onClick={() => setTerm('')}
               aria-label="Clear search"
-              className="text-neutral-400 hover:text-neutral-700 p-1 cursor-pointer"
+              className="text-neutral-400 hover:text-neutral-700 p-1.5 cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
           )}
           <button
             type="submit"
-            className="py-1.5 px-3.5 rounded-full bg-[#4A0E17] hover:bg-[#7A1438] text-white text-xs font-semibold transition-colors cursor-pointer shrink-0"
+            className="min-h-9 py-1.5 px-4 rounded-full bg-[#4A0E17] hover:bg-[#7A1438] text-white typo-btn-sm transition-colors cursor-pointer shrink-0"
           >
             Search
           </button>
           <button
             type="button"
             onClick={() => setIsSearchModalOpen(false)}
-            className="text-xs font-semibold text-[#5B112B] hover:text-[#4A0E17] px-2 py-1 bg-[#F3ECE7] rounded cursor-pointer"
+            className="typo-meta font-semibold text-[#5B112B] hover:text-[#4A0E17] px-2.5 py-1.5 bg-[#F3ECE7] rounded-md cursor-pointer"
           >
             ESC
           </button>
@@ -107,7 +107,7 @@ export const SearchModal: React.FC = () => {
           {!term.trim() ? (
             <div className="space-y-4">
               <div>
-                <p className="text-xs font-semibold text-[#8C7A70] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <p className="typo-label text-[#8C7A70] mb-2.5 flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
                   Trending Searches ({products.length} Indexed Products)
                 </p>
@@ -117,7 +117,7 @@ export const SearchModal: React.FC = () => {
                       key={qs}
                       type="button"
                       onClick={() => submitSearch(qs)}
-                      className="px-3 py-1.5 text-xs font-medium bg-white hover:bg-[#F3ECE7] text-neutral-800 rounded-full border border-[#EBE4DD] transition-colors cursor-pointer"
+                      className="px-3.5 py-1.5 typo-body-sm font-medium bg-white hover:bg-[#F3ECE7] text-neutral-800 rounded-full border border-[#EBE4DD] transition-colors cursor-pointer"
                     >
                       {qs}
                     </button>
@@ -126,19 +126,19 @@ export const SearchModal: React.FC = () => {
               </div>
 
               <div>
-                <p className="text-xs font-semibold text-[#8C7A70] uppercase tracking-wider mb-2">
+                <p className="typo-label text-[#8C7A70] mb-2.5">
                   Browse by Category
                 </p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 min-[400px]:grid-cols-2 sm:grid-cols-3 gap-2">
                   {ORDERED_CATEGORIES.map((cat) => (
                     <button
                       key={cat.id}
                       type="button"
                       onClick={() => handleCategorySearch(cat.id)}
-                      className="p-2.5 text-left text-xs font-medium bg-white hover:bg-[#F3ECE7] rounded-lg border border-[#EBE4DD] flex items-center justify-between cursor-pointer"
+                      className="p-2.5 min-h-10 text-left typo-body-sm font-medium bg-white hover:bg-[#F3ECE7] rounded-lg border border-[#EBE4DD] flex items-center justify-between cursor-pointer"
                     >
                       <span>{cat.shortLabel}</span>
-                      <ArrowRight className="w-3 h-3 text-[#7A1438]" />
+                      <ArrowRight className="w-3.5 h-3.5 text-[#7A1438]" />
                     </button>
                   ))}
                 </div>
@@ -146,15 +146,15 @@ export const SearchModal: React.FC = () => {
             </div>
           ) : (
             <div className="pt-2 space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-neutral-600 font-medium">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="typo-body-sm text-neutral-600 font-medium">
                   Found {filtered.length} {filtered.length === 1 ? 'product' : 'products'} matching “{term}”
                 </p>
                 {filtered.length > 0 && (
                   <button
                     type="button"
                     onClick={() => submitSearch(term)}
-                    className="text-xs font-semibold text-[#7A1438] hover:underline flex items-center gap-1 cursor-pointer"
+                    className="typo-btn-sm text-[#7A1438] hover:underline flex items-center gap-1 cursor-pointer"
                   >
                     <span>View All Results</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -163,11 +163,11 @@ export const SearchModal: React.FC = () => {
               </div>
 
               {filtered.length === 0 ? (
-                <div className="py-8 text-center space-y-3">
-                  <p className="text-sm font-semibold text-neutral-800">
+                <div className="py-8 text-center space-y-2.5">
+                  <p className="typo-h4 text-neutral-800">
                     No matching products found for “{term}”
                   </p>
-                  <p className="text-xs text-neutral-500">
+                  <p className="typo-body-sm text-neutral-500 max-w-md mx-auto">
                     Check your spelling, search by product ID (e.g. “vyo-fash-01”), or try broader terms such as “saree”, “jewellery”, “speaker”, “skincare”, or “footwear”.
                   </p>
                 </div>
@@ -179,40 +179,40 @@ export const SearchModal: React.FC = () => {
                         key={prod.id}
                         type="button"
                         onClick={() => handleSelectProduct(prod.id)}
-                        className="w-full p-2 bg-white hover:bg-[#F5EFEA] rounded-lg border border-[#EBE4DD] flex items-center gap-3 text-left cursor-pointer transition-colors"
+                        className="w-full p-2.5 bg-white hover:bg-[#F5EFEA] rounded-lg border border-[#EBE4DD] flex items-center gap-3 text-left cursor-pointer transition-colors"
                       >
                         <ProductImage
                           src={prod.primaryImage}
                           alt={prod.name}
                           category={prod.category}
                           compact
-                          className="w-14 h-14 object-cover rounded-md bg-[#EBE4DD] shrink-0"
+                          className="w-14 h-16 object-cover rounded-md bg-[#EBE4DD] shrink-0"
                         />
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 text-[11px] text-[#8C7A70] uppercase tracking-wider font-medium truncate">
+                          <div className="flex items-center gap-1.5 typo-meta text-[#8C7A70] uppercase tracking-wider truncate">
                             <span className="truncate">
                               {prod.brand} · {CATEGORY_METADATA[prod.category]?.shortLabel || prod.category}
                             </span>
                             <span aria-hidden="true">·</span>
-                            <span className="font-mono lowercase text-neutral-400 shrink-0">
+                            <span className="typo-tabular lowercase text-neutral-400 shrink-0">
                               {prod.id}
                             </span>
                           </div>
-                          <h4 className="text-sm font-semibold text-neutral-900 truncate">
+                          <h4 className="typo-card-title text-neutral-900 truncate mt-0.5">
                             {prod.name}
                           </h4>
-                          <div className="flex items-center gap-2 mt-0.5 font-mono tabular-nums text-xs">
-                            <span className="font-bold text-[#4A0E17]">
+                          <div className="flex items-center gap-2 mt-0.5 typo-tabular">
+                            <span className="typo-price text-[#4A0E17]">
                               ₹{prod.discountPrice.toLocaleString('en-IN')}
                             </span>
                             {prod.originalPrice > prod.discountPrice && (
-                              <span className="text-neutral-400 line-through text-[11px]">
+                              <span className="text-neutral-400 line-through typo-meta">
                                 ₹{prod.originalPrice.toLocaleString('en-IN')}
                               </span>
                             )}
                           </div>
                         </div>
-                        <ArrowRight className="w-4 h-4 text-neutral-400 shrink-0 mr-2" />
+                        <ArrowRight className="w-4 h-4 text-neutral-400 shrink-0 mr-1" />
                       </button>
                     ))}
                   </div>
@@ -221,12 +221,12 @@ export const SearchModal: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => submitSearch(term)}
-                      className="w-full py-2.5 px-4 rounded-xl bg-[#4A0E17] hover:bg-[#380811] text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                      className="w-full min-h-11 py-2.5 px-4 rounded-xl bg-[#4A0E17] hover:bg-[#380811] text-white typo-btn flex items-center justify-center gap-2 transition-colors cursor-pointer"
                     >
                       <span>
                         View All Results ({filtered.length} {filtered.length === 1 ? 'product' : 'products'})
                       </span>
-                      <ArrowRight className="w-3.5 h-3.5 text-[#D4AF37]" />
+                      <ArrowRight className="w-4 h-4 text-[#D4AF37]" />
                     </button>
                   </div>
                 </>

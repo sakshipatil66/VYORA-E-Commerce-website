@@ -80,11 +80,11 @@ export const ProductImage: React.FC<ProductImageProps> = ({
         {!compact && (
           <>
             {label && (
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-[#7A1438] line-clamp-1">
+              <span className="typo-badge text-[#7A1438] line-clamp-1">
                 {label}
               </span>
             )}
-            <span className="text-xs font-medium text-neutral-700 line-clamp-2 mt-0.5">
+            <span className="typo-meta font-medium text-neutral-700 line-clamp-2 mt-0.5">
               {alt}
             </span>
           </>

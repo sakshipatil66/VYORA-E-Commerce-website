@@ -7,14 +7,8 @@ import {
   Plus,
   Trash2,
   Edit,
-  CheckCircle2,
-  AlertCircle,
-  Tag,
   Search,
-  Filter,
-  ArrowRight,
-  ShieldCheck,
-  ChevronDown
+  ShieldCheck
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { Product, OrderStatus, CategoryId, Coupon } from '../../types';
@@ -26,11 +20,12 @@ export const AdminDashboard: React.FC = () => {
     addProduct,
     updateProduct,
     deleteProduct,
-    orders,
+    adminOrders,
     updateOrderStatus,
     setActivePage,
     addToast
   } = useStore();
+  const orders = adminOrders;
 
   const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'coupons' | 'analytics'>('products');
   const [productSearch, setProductSearch] = useState('');
@@ -145,30 +140,29 @@ export const AdminDashboard: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      
+    <div className="vyora-container vyora-page">
       {/* Admin Header Strip */}
-      <div className="bg-white p-6 rounded-2xl border border-[#EBE4DD] shadow-2xs mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white p-5 sm:p-6 rounded-2xl border border-[#EBE4DD] shadow-2xs mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-[#7A1438]">
-            <ShieldCheck className="w-4 h-4 text-emerald-700" />
+          <div className="flex items-center gap-2 typo-eyebrow text-[#7A1438]">
+            <ShieldCheck className="w-4 h-4 text-emerald-700 shrink-0" />
             <span>Store Operations Console</span>
           </div>
-          <h1 className="font-serif text-2xl sm:text-3xl font-bold text-neutral-900 mt-0.5">
+          <h1 className="typo-h1 text-neutral-900 mt-1">
             VYORA Marketplace Admin
           </h1>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => setActivePage('shop')}
-            className="py-2 px-4 text-xs font-medium text-neutral-700 bg-[#FAF7F5] hover:bg-[#F3ECE7] border border-[#EBE4DD] rounded-md transition-colors"
+            className="min-h-10 py-2 px-4 typo-btn-sm text-neutral-700 bg-[#FAF7F5] hover:bg-[#F3ECE7] border border-[#EBE4DD] rounded-lg transition-colors cursor-pointer"
           >
             Preview Live Storefront
           </button>
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="py-2 px-4 text-xs font-semibold text-white bg-[#5B112B] hover:bg-[#430C1F] rounded-md transition-colors flex items-center gap-1.5 shadow-xs"
+            className="min-h-10 py-2 px-4 typo-btn-sm text-white bg-[#5B112B] hover:bg-[#430C1F] rounded-lg transition-colors inline-flex items-center gap-1.5 shadow-xs cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Add New Creation</span>
@@ -177,65 +171,65 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       {/* 4 KPI Metrics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 font-mono tabular-nums">
-        <div className="p-5 bg-white rounded-xl border border-[#EBE4DD] shadow-2xs">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 typo-tabular">
+        <div className="p-5 bg-white rounded-2xl border border-[#EBE4DD] shadow-2xs">
           <div className="flex items-center justify-between text-neutral-500 mb-2">
-            <span className="text-xs font-sans font-semibold">Gross Sales Revenue</span>
+            <span className="typo-meta font-semibold">Gross Sales Revenue</span>
             <TrendingUp className="w-4 h-4 text-emerald-600" />
           </div>
-          <p className="text-2xl font-bold text-[#4A0E17]">
+          <p className="typo-h2 font-sans text-[#4A0E17]">
             ₹{(totalRevenue / 100000).toFixed(2)}L
           </p>
-          <p className="text-[11px] text-emerald-700 font-sans font-medium mt-1">
+          <p className="typo-meta text-emerald-700 font-medium mt-1.5">
             +18.4% vs previous festive cycle
           </p>
         </div>
 
-        <div className="p-5 bg-white rounded-xl border border-[#EBE4DD] shadow-2xs">
+        <div className="p-5 bg-white rounded-2xl border border-[#EBE4DD] shadow-2xs">
           <div className="flex items-center justify-between text-neutral-500 mb-2">
-            <span className="text-xs font-sans font-semibold">Total Consignments</span>
+            <span className="typo-meta font-semibold">Total Consignments</span>
             <ShoppingBag className="w-4 h-4 text-[#7A1438]" />
           </div>
-          <p className="text-2xl font-bold text-neutral-900">
+          <p className="typo-h2 font-sans text-neutral-900">
             {totalOrderCount}
           </p>
-          <p className="text-[11px] text-neutral-500 font-sans mt-1">
+          <p className="typo-meta text-neutral-500 mt-1.5">
             {orders.filter((o) => o.status !== 'delivered').length} active shipments in transit
           </p>
         </div>
 
-        <div className="p-5 bg-white rounded-xl border border-[#EBE4DD] shadow-2xs">
+        <div className="p-5 bg-white rounded-2xl border border-[#EBE4DD] shadow-2xs">
           <div className="flex items-center justify-between text-neutral-500 mb-2">
-            <span className="text-xs font-sans font-semibold">Active Catalog SKUs</span>
+            <span className="typo-meta font-semibold">Active Catalog SKUs</span>
             <Package className="w-4 h-4 text-blue-600" />
           </div>
-          <p className="text-2xl font-bold text-neutral-900">
+          <p className="typo-h2 font-sans text-neutral-900">
             {products.length}
           </p>
-          <p className="text-[11px] text-amber-700 font-sans font-medium mt-1">
+          <p className="typo-meta text-amber-700 font-medium mt-1.5">
             {lowStockCount} items below safe stock threshold
           </p>
         </div>
 
-        <div className="p-5 bg-white rounded-xl border border-[#EBE4DD] shadow-2xs">
+        <div className="p-5 bg-white rounded-2xl border border-[#EBE4DD] shadow-2xs">
           <div className="flex items-center justify-between text-neutral-500 mb-2">
-            <span className="text-xs font-sans font-semibold">Patron Repeat Rate</span>
+            <span className="typo-meta font-semibold">Patron Repeat Rate</span>
             <Users className="w-4 h-4 text-purple-600" />
           </div>
-          <p className="text-2xl font-bold text-neutral-900">
+          <p className="typo-h2 font-sans text-neutral-900">
             44.2%
           </p>
-          <p className="text-[11px] text-emerald-700 font-sans font-medium mt-1">
+          <p className="typo-meta text-emerald-700 font-medium mt-1.5">
             Tier-1 Gold & Platinum patron loyalty
           </p>
         </div>
       </div>
 
       {/* Tabs (Interactive Filter Controls) */}
-      <div className="flex items-center gap-2 border-b border-[#EBE4DD] mb-6">
+      <div className="flex items-center gap-2 border-b border-[#EBE4DD] mb-6 overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveTab('products')}
-          className={`py-2 px-4 text-xs font-semibold border-b-2 transition-colors ${
+          className={`min-h-11 py-2.5 px-4 typo-btn-sm whitespace-nowrap shrink-0 border-b-2 transition-colors cursor-pointer ${
             activeTab === 'products'
               ? 'border-[#7A1438] text-[#7A1438]'
               : 'border-transparent text-neutral-500 hover:text-black'
@@ -245,7 +239,7 @@ export const AdminDashboard: React.FC = () => {
         </button>
         <button
           onClick={() => setActiveTab('orders')}
-          className={`py-2 px-4 text-xs font-semibold border-b-2 transition-colors ${
+          className={`min-h-11 py-2.5 px-4 typo-btn-sm whitespace-nowrap shrink-0 border-b-2 transition-colors cursor-pointer ${
             activeTab === 'orders'
               ? 'border-[#7A1438] text-[#7A1438]'
               : 'border-transparent text-neutral-500 hover:text-black'
@@ -255,7 +249,7 @@ export const AdminDashboard: React.FC = () => {
         </button>
         <button
           onClick={() => setActiveTab('coupons')}
-          className={`py-2 px-4 text-xs font-semibold border-b-2 transition-colors ${
+          className={`min-h-11 py-2.5 px-4 typo-btn-sm whitespace-nowrap shrink-0 border-b-2 transition-colors cursor-pointer ${
             activeTab === 'coupons'
               ? 'border-[#7A1438] text-[#7A1438]'
               : 'border-transparent text-neutral-500 hover:text-black'
@@ -269,34 +263,34 @@ export const AdminDashboard: React.FC = () => {
       {activeTab === 'products' && (
         <div className="space-y-4">
           {/* Search bar */}
-          <div className="flex items-center gap-3 bg-white p-3 rounded-lg border border-[#EBE4DD]">
-            <Search className="w-4 h-4 text-neutral-400" />
+          <div className="flex items-center gap-3 bg-white px-4 py-2.5 min-h-11 rounded-xl border border-[#EBE4DD]">
+            <Search className="w-4 h-4 text-neutral-400 shrink-0" />
             <input
               type="text"
               value={productSearch}
               onChange={(e) => setProductSearch(e.target.value)}
               placeholder="Search products by title, category, or guild artisan..."
-              className="w-full text-xs text-neutral-900 bg-transparent focus:outline-none"
+              className="w-full typo-input-bare text-neutral-900 bg-transparent focus:outline-none"
             />
             {productSearch && (
-              <button onClick={() => setProductSearch('')} className="text-xs text-neutral-400">
+              <button onClick={() => setProductSearch('')} className="typo-btn-sm text-neutral-400 hover:text-neutral-700 cursor-pointer shrink-0">
                 Clear
               </button>
             )}
           </div>
 
           {/* Table */}
-          <div className="bg-white rounded-xl border border-[#EBE4DD] overflow-hidden shadow-2xs">
+          <div className="bg-white rounded-2xl border border-[#EBE4DD] overflow-hidden shadow-2xs">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-[#FAF7F5] border-b border-[#EBE4DD] text-neutral-600 font-semibold uppercase tracking-wider text-[11px]">
+              <table className="w-full text-left typo-body-sm min-w-[700px]">
+                <thead className="bg-[#FAF7F5] border-b border-[#EBE4DD] text-neutral-600 typo-label">
                   <tr>
-                    <th className="py-3 px-4">Creation</th>
-                    <th className="py-3 px-4">Category</th>
-                    <th className="py-3 px-4">Price (INR)</th>
-                    <th className="py-3 px-4">Inventory</th>
-                    <th className="py-3 px-4">Rating</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
+                    <th className="py-3.5 px-4">Creation</th>
+                    <th className="py-3.5 px-4">Category</th>
+                    <th className="py-3.5 px-4">Price (INR)</th>
+                    <th className="py-3.5 px-4">Inventory</th>
+                    <th className="py-3.5 px-4">Rating</th>
+                    <th className="py-3.5 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#F3ECE7]">
@@ -312,59 +306,63 @@ export const AdminDashboard: React.FC = () => {
                             className="w-10 h-12 object-cover rounded bg-[#FAF7F5] shrink-0"
                           />
                           <div>
-                            <p className="font-semibold text-neutral-900 line-clamp-1">{p.name}</p>
-                            <p className="text-[11px] text-neutral-400">{p.brand} · {p.artisanOrigin?.split(',')[0]}</p>
+                            <p className="typo-card-title text-neutral-900 line-clamp-1">{p.name}</p>
+                            <p className="typo-meta text-neutral-400">{p.brand} · {p.artisanOrigin?.split(',')[0]}</p>
                           </div>
                         </div>
                       </td>
                       <td className="py-3 px-4 capitalize text-neutral-700">
                         {p.category}
                       </td>
-                      <td className="py-3 px-4 font-mono tabular-nums">
-                        <span className="font-bold text-[#4A0E17]">₹{p.discountPrice.toLocaleString('en-IN')}</span>
+                      <td className="py-3 px-4 typo-tabular">
+                        <span className="typo-price text-[#4A0E17]">₹{p.discountPrice.toLocaleString('en-IN')}</span>
                         {p.originalPrice > p.discountPrice && (
-                          <span className="text-[11px] text-neutral-400 line-through ml-1.5">
+                          <span className="typo-meta text-neutral-400 line-through ml-1.5">
                             ₹{p.originalPrice.toLocaleString('en-IN')}
                           </span>
                         )}
                       </td>
-                      <td className="py-3 px-4 font-mono tabular-nums">
+                      <td className="py-3 px-4 typo-tabular">
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => updateProduct({ ...p, stockQuantity: Math.max(0, p.stockQuantity - 1) })}
-                            className="w-5 h-5 bg-[#FAF7F5] border border-[#EBE4DD] rounded text-neutral-700 hover:bg-[#EBE4DD]"
+                            aria-label={`Decrease stock for ${p.name}`}
+                            className="w-7 h-7 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md text-neutral-700 hover:bg-[#EBE4DD] flex items-center justify-center cursor-pointer"
                           >
                             -
                           </button>
-                          <span className={`font-semibold ${p.stockQuantity < 15 ? 'text-amber-700' : 'text-neutral-900'}`}>
+                          <span className={`font-semibold min-w-[2ch] text-center ${p.stockQuantity < 15 ? 'text-amber-700' : 'text-neutral-900'}`}>
                             {p.stockQuantity}
                           </span>
                           <button
                             onClick={() => updateProduct({ ...p, stockQuantity: p.stockQuantity + 1 })}
-                            className="w-5 h-5 bg-[#FAF7F5] border border-[#EBE4DD] rounded text-neutral-700 hover:bg-[#EBE4DD]"
+                            aria-label={`Increase stock for ${p.name}`}
+                            className="w-7 h-7 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md text-neutral-700 hover:bg-[#EBE4DD] flex items-center justify-center cursor-pointer"
                           >
                             +
                           </button>
                         </div>
                       </td>
-                      <td className="py-3 px-4 font-mono">
+                      <td className="py-3 px-4 typo-tabular text-neutral-700">
                         ★ {p.rating} ({p.reviewCount})
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => setEditingProduct(p)}
                             title="Edit"
-                            className="p-1.5 text-neutral-500 hover:text-black rounded"
+                            aria-label={`Edit ${p.name}`}
+                            className="w-8 h-8 flex items-center justify-center text-neutral-500 hover:text-black hover:bg-[#FAF7F5] rounded-lg cursor-pointer"
                           >
-                            <Edit className="w-3.5 h-3.5" />
+                            <Edit className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => deleteProduct(p.id)}
                             title="Delete"
-                            className="p-1.5 text-neutral-400 hover:text-rose-600 rounded"
+                            aria-label={`Delete ${p.name}`}
+                            className="w-8 h-8 flex items-center justify-center text-neutral-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
@@ -380,46 +378,46 @@ export const AdminDashboard: React.FC = () => {
       {/* TAB 2: LIVE ORDERS MANAGEMENT */}
       {activeTab === 'orders' && (
         <div className="space-y-4">
-          <div className="bg-white rounded-xl border border-[#EBE4DD] overflow-hidden shadow-2xs">
+          <div className="bg-white rounded-2xl border border-[#EBE4DD] overflow-hidden shadow-2xs">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-[#FAF7F5] border-b border-[#EBE4DD] text-neutral-600 font-semibold uppercase tracking-wider text-[11px]">
+              <table className="w-full text-left typo-body-sm min-w-[700px]">
+                <thead className="bg-[#FAF7F5] border-b border-[#EBE4DD] text-neutral-600 typo-label">
                   <tr>
-                    <th className="py-3 px-4">Order ID & Date</th>
-                    <th className="py-3 px-4">Patron Recipient</th>
-                    <th className="py-3 px-4">Total (INR)</th>
-                    <th className="py-3 px-4">Payment</th>
-                    <th className="py-3 px-4">Consignment Status</th>
-                    <th className="py-3 px-4 text-right">Courier Details</th>
+                    <th className="py-3.5 px-4">Order ID & Date</th>
+                    <th className="py-3.5 px-4">Patron Recipient</th>
+                    <th className="py-3.5 px-4">Total (INR)</th>
+                    <th className="py-3.5 px-4">Payment</th>
+                    <th className="py-3.5 px-4">Consignment Status</th>
+                    <th className="py-3.5 px-4 text-right">Courier Details</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#F3ECE7]">
                   {orders.map((ord) => (
                     <tr key={ord.id} className="hover:bg-[#FAF7F5]/60 transition-colors">
-                      <td className="py-3 px-4 font-mono tabular-nums">
+                      <td className="py-3 px-4 typo-tabular">
                         <p className="font-bold text-[#4A0E17]">{ord.id}</p>
-                        <p className="text-[11px] text-neutral-400">{ord.date}</p>
+                        <p className="typo-meta text-neutral-400">{ord.date}</p>
                       </td>
                       <td className="py-3 px-4">
-                        <p className="font-semibold text-neutral-900">{ord.shippingAddress.fullName}</p>
-                        <p className="text-[11px] text-neutral-400">
+                        <p className="typo-card-title text-neutral-900">{ord.shippingAddress.fullName}</p>
+                        <p className="typo-meta text-neutral-400">
                           {ord.shippingAddress.city}, {ord.shippingAddress.state}, India
                         </p>
                       </td>
-                      <td className="py-3 px-4 font-mono tabular-nums font-bold text-neutral-900">
+                      <td className="py-3 px-4 typo-price text-neutral-900">
                         ₹{ord.total.toLocaleString('en-IN')}
                       </td>
                       <td className="py-3 px-4">
-                        <span className="text-[11px] font-semibold text-neutral-700">
+                        <span className="typo-meta font-semibold text-neutral-700">
                           {ord.paymentMethod}
                         </span>
-                        <span className="block text-[10px] text-neutral-400">{ord.paymentStatus}</span>
+                        <span className="block typo-meta text-neutral-400">{ord.paymentStatus}</span>
                       </td>
                       <td className="py-3 px-4">
                         <select
                           value={ord.status}
                           onChange={(e) => updateOrderStatus(ord.id, e.target.value as OrderStatus)}
-                          className="text-xs bg-[#FAF7F5] border border-[#EBE4DD] rounded px-2 py-1 font-semibold text-[#4A0E17] focus:outline-none"
+                          className="min-h-9 typo-btn-sm bg-[#FAF7F5] border border-[#EBE4DD] rounded-lg px-2.5 py-1.5 text-[#4A0E17] focus:outline-none cursor-pointer"
                         >
                           <option value="placed">Placed</option>
                           <option value="confirmed">Confirmed</option>
@@ -429,8 +427,8 @@ export const AdminDashboard: React.FC = () => {
                           <option value="delivered">Delivered</option>
                         </select>
                       </td>
-                      <td className="py-3 px-4 text-right font-mono text-[11px]">
-                        <p className="text-neutral-700">{ord.courierName}</p>
+                      <td className="py-3 px-4 text-right typo-tabular typo-meta">
+                        <p className="text-neutral-700 font-medium">{ord.courierName}</p>
                         <p className="text-neutral-400">{ord.trackingNumber}</p>
                       </td>
                     </tr>
@@ -446,23 +444,23 @@ export const AdminDashboard: React.FC = () => {
       {activeTab === 'coupons' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Coupon Creation Card */}
-          <div className="bg-white p-5 rounded-xl border border-[#EBE4DD] space-y-3">
-            <h3 className="font-serif text-base font-bold text-[#4A0E17]">Issue Promo Coupon</h3>
-            <form onSubmit={handleAddCoupon} className="space-y-3 text-xs">
+          <div className="bg-white p-5 sm:p-6 rounded-2xl border border-[#EBE4DD] space-y-4">
+            <h3 className="typo-h3 text-[#4A0E17]">Issue Promo Coupon</h3>
+            <form onSubmit={handleAddCoupon} className="space-y-3.5">
               <div>
-                <label className="font-semibold text-neutral-700 block mb-1">Coupon Code</label>
+                <label className="typo-label text-neutral-700 block mb-1.5">Coupon Code</label>
                 <input
                   type="text"
                   required
                   value={newCouponCode}
                   onChange={(e) => setNewCouponCode(e.target.value.toUpperCase())}
                   placeholder="e.g. DIWALI30"
-                  className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md uppercase font-mono"
+                  className="typo-input bg-[#FAF7F5] border border-[#EBE4DD] rounded-lg uppercase typo-tabular focus:outline-none focus:border-[#7A1438]"
                 />
               </div>
 
               <div>
-                <label className="font-semibold text-neutral-700 block mb-1">Discount %</label>
+                <label className="typo-label text-neutral-700 block mb-1.5">Discount %</label>
                 <input
                   type="number"
                   required
@@ -470,24 +468,24 @@ export const AdminDashboard: React.FC = () => {
                   max={70}
                   value={newCouponVal}
                   onChange={(e) => setNewCouponVal(Number(e.target.value))}
-                  className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md font-mono"
+                  className="typo-input bg-[#FAF7F5] border border-[#EBE4DD] rounded-lg typo-tabular focus:outline-none focus:border-[#7A1438]"
                 />
               </div>
 
               <div>
-                <label className="font-semibold text-neutral-700 block mb-1">Min Order Value (₹)</label>
+                <label className="typo-label text-neutral-700 block mb-1.5">Min Order Value (₹)</label>
                 <input
                   type="number"
                   required
                   value={newCouponMin}
                   onChange={(e) => setNewCouponMin(Number(e.target.value))}
-                  className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md font-mono"
+                  className="typo-input bg-[#FAF7F5] border border-[#EBE4DD] rounded-lg typo-tabular focus:outline-none focus:border-[#7A1438]"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-2.5 px-4 font-semibold text-white bg-[#5B112B] hover:bg-[#430C1F] rounded-md"
+                className="w-full min-h-11 py-2.5 px-4 typo-btn text-white bg-[#5B112B] hover:bg-[#430C1F] rounded-lg transition-colors cursor-pointer"
               >
                 Create Coupon Code
               </button>
@@ -496,23 +494,23 @@ export const AdminDashboard: React.FC = () => {
 
           {/* Active Coupons List */}
           <div className="lg:col-span-2 space-y-3">
-            <h3 className="font-serif text-base font-bold text-neutral-900">Active Campaign Vouchers</h3>
-            <div className="space-y-2">
+            <h3 className="typo-h3 text-neutral-900">Active Campaign Vouchers</h3>
+            <div className="space-y-2.5">
               {adminCoupons.map((c) => (
-                <div key={c.code} className="p-4 bg-white rounded-xl border border-[#EBE4DD] flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-sm text-[#7A1438] bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
+                <div key={c.code} className="p-4 bg-white rounded-2xl border border-[#EBE4DD] flex flex-wrap items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="typo-tabular font-bold typo-body-sm text-[#7A1438] bg-rose-50 px-2.5 py-0.5 rounded border border-rose-200">
                         {c.code}
                       </span>
-                      <span className="text-xs font-semibold text-neutral-800">
+                      <span className="typo-card-title text-neutral-800 typo-tabular">
                         {c.discountType === 'percentage' ? `${c.discountValue}% OFF` : `₹${c.discountValue} OFF`}
                       </span>
                     </div>
-                    <p className="text-xs text-neutral-500">{c.description}</p>
-                    <p className="text-[11px] text-neutral-400 font-mono">Min Order: ₹{c.minOrderValue}</p>
+                    <p className="typo-body-sm text-neutral-500">{c.description}</p>
+                    <p className="typo-meta text-neutral-400 typo-tabular">Min Order: ₹{c.minOrderValue.toLocaleString('en-IN')}</p>
                   </div>
-                  <span className="text-[10px] uppercase font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded">
+                  <span className="typo-badge text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded">
                     Active
                   </span>
                 </div>
@@ -525,42 +523,42 @@ export const AdminDashboard: React.FC = () => {
       {/* MODAL: ADD PRODUCT */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-xl bg-white rounded-2xl border border-[#EBE4DD] p-6 shadow-2xl max-h-[90vh] overflow-y-auto space-y-4">
-            <h3 className="font-serif text-xl font-bold text-[#4A0E17]">
+          <div className="w-full max-w-xl bg-white rounded-2xl border border-[#EBE4DD] p-5 sm:p-6 shadow-2xl max-h-[90vh] overflow-y-auto space-y-4">
+            <h3 className="typo-h3 text-[#4A0E17]">
               Add New Handcrafted Creation to Catalog
             </h3>
-            <form onSubmit={handleCreateProduct} className="space-y-3 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <form onSubmit={handleCreateProduct} className="space-y-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="font-semibold text-neutral-700 block mb-1">Product Title *</label>
+                  <label className="typo-label text-neutral-700 block mb-1.5">Product Title *</label>
                   <input
                     type="text"
                     required
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     placeholder="e.g. Kanchipuram Gold Zari Silk Saree"
-                    className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md"
+                    className="typo-input bg-[#FAF7F5] border border-[#EBE4DD] rounded-lg focus:outline-none focus:border-[#7A1438]"
                   />
                 </div>
                 <div>
-                  <label className="font-semibold text-neutral-700 block mb-1">Brand Atelier *</label>
+                  <label className="typo-label text-neutral-700 block mb-1.5">Brand Atelier *</label>
                   <input
                     type="text"
                     required
                     value={newBrand}
                     onChange={(e) => setNewBrand(e.target.value)}
-                    className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md"
+                    className="typo-input bg-[#FAF7F5] border border-[#EBE4DD] rounded-lg focus:outline-none focus:border-[#7A1438]"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="font-semibold text-neutral-700 block mb-1">Category *</label>
+                  <label className="typo-label text-neutral-700 block mb-1.5">Category *</label>
                   <select
                     value={newCategory}
                     onChange={(e) => setNewCategory(e.target.value as CategoryId)}
-                    className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md capitalize"
+                    className="typo-input bg-[#FAF7F5] border border-[#EBE4DD] rounded-lg capitalize focus:outline-none focus:border-[#7A1438]"
                   >
                     <option value="fashion">Couture & Fashion</option>
                     <option value="jewellery">Fine & Temple Jewellery</option>
@@ -577,79 +575,79 @@ export const AdminDashboard: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="font-semibold text-neutral-700 block mb-1">Subcategory</label>
+                  <label className="typo-label text-neutral-700 block mb-1.5">Subcategory</label>
                   <input
                     type="text"
                     value={newSubCategory}
                     onChange={(e) => setNewSubCategory(e.target.value)}
-                    className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md"
+                    className="typo-input bg-[#FAF7F5] border border-[#EBE4DD] rounded-lg focus:outline-none focus:border-[#7A1438]"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-mono">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                 <div>
-                  <label className="font-semibold text-neutral-700 block mb-1 font-sans">MRP (₹) *</label>
+                  <label className="typo-label text-neutral-700 block mb-1.5">MRP (₹) *</label>
                   <input
                     type="number"
                     required
                     value={newOriginalPrice}
                     onChange={(e) => setNewOriginalPrice(Number(e.target.value))}
-                    className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md"
+                    className="typo-input typo-tabular bg-[#FAF7F5] border border-[#EBE4DD] rounded-lg focus:outline-none focus:border-[#7A1438]"
                   />
                 </div>
                 <div>
-                  <label className="font-semibold text-neutral-700 block mb-1 font-sans">Offer Price (₹) *</label>
+                  <label className="typo-label text-neutral-700 block mb-1.5">Offer Price (₹) *</label>
                   <input
                     type="number"
                     required
                     value={newDiscountPrice}
                     onChange={(e) => setNewDiscountPrice(Number(e.target.value))}
-                    className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md"
+                    className="typo-input typo-tabular bg-[#FAF7F5] border border-[#EBE4DD] rounded-lg focus:outline-none focus:border-[#7A1438]"
                   />
                 </div>
                 <div>
-                  <label className="font-semibold text-neutral-700 block mb-1 font-sans">Initial Stock *</label>
+                  <label className="typo-label text-neutral-700 block mb-1.5">Initial Stock *</label>
                   <input
                     type="number"
                     required
                     value={newStock}
                     onChange={(e) => setNewStock(Number(e.target.value))}
-                    className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md"
+                    className="typo-input typo-tabular bg-[#FAF7F5] border border-[#EBE4DD] rounded-lg focus:outline-none focus:border-[#7A1438]"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="font-semibold text-neutral-700 block mb-1">Artisan Origin Guild</label>
+                  <label className="typo-label text-neutral-700 block mb-1.5">Artisan Origin Guild</label>
                   <input
                     type="text"
                     value={newOrigin}
                     onChange={(e) => setNewOrigin(e.target.value)}
                     placeholder="e.g. Kanchipuram, Tamil Nadu"
-                    className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md"
+                    className="typo-input bg-[#FAF7F5] border border-[#EBE4DD] rounded-lg focus:outline-none focus:border-[#7A1438]"
                   />
                 </div>
                 <div>
-                  <label className="font-semibold text-neutral-700 block mb-1">Editorial Stamp / Badge</label>
+                  <label className="typo-label text-neutral-700 block mb-1.5">Editorial Stamp / Badge</label>
                   <input
                     type="text"
                     value={newBadge}
                     onChange={(e) => setNewBadge(e.target.value)}
                     placeholder="e.g. Silk Mark Certified"
-                    className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md"
+                    className="typo-input bg-[#FAF7F5] border border-[#EBE4DD] rounded-lg focus:outline-none focus:border-[#7A1438]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="font-semibold text-neutral-700 block mb-1">Image URL</label>
+                <label className="typo-label text-neutral-700 block mb-1.5">Image URL</label>
                 <input
                   type="text"
                   value={newImage}
                   onChange={(e) => setNewImage(e.target.value)}
-                  className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md"
+                  className="typo-input bg-[#FAF7F5] border border-[#EBE4DD] rounded-lg focus:outline-none focus:border-[#7A1438]"
                 />
               </div>
 
@@ -657,13 +655,13 @@ export const AdminDashboard: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="py-2 px-4 text-neutral-600 hover:text-black font-semibold"
+                  className="min-h-10 py-2 px-4 typo-btn-sm text-neutral-600 hover:text-black cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="py-2.5 px-6 font-semibold text-white bg-[#5B112B] hover:bg-[#430C1F] rounded-md transition-colors"
+                  className="min-h-11 py-2.5 px-6 typo-btn text-white bg-[#5B112B] hover:bg-[#430C1F] rounded-lg transition-colors cursor-pointer"
                 >
                   Publish Creation
                 </button>
@@ -676,38 +674,38 @@ export const AdminDashboard: React.FC = () => {
       {/* MODAL: EDIT PRODUCT */}
       {editingProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-lg bg-white rounded-2xl border border-[#EBE4DD] p-6 shadow-2xl space-y-4">
-            <h3 className="font-serif text-xl font-bold text-[#4A0E17]">
+          <div className="w-full max-w-lg bg-white rounded-2xl border border-[#EBE4DD] p-5 sm:p-6 shadow-2xl space-y-4">
+            <h3 className="typo-h3 text-[#4A0E17]">
               Edit Creation: {editingProduct.name}
             </h3>
-            <form onSubmit={handleSaveEditProduct} className="space-y-3 text-xs">
+            <form onSubmit={handleSaveEditProduct} className="space-y-3.5">
               <div>
-                <label className="font-semibold text-neutral-700 block mb-1">Title</label>
+                <label className="typo-label text-neutral-700 block mb-1.5">Title</label>
                 <input
                   type="text"
                   value={editingProduct.name}
                   onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
-                  className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md"
+                  className="typo-input bg-[#FAF7F5] border border-[#EBE4DD] rounded-lg focus:outline-none focus:border-[#7A1438]"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3 font-mono">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="font-semibold text-neutral-700 block mb-1 font-sans">Offer Price (₹)</label>
+                  <label className="typo-label text-neutral-700 block mb-1.5">Offer Price (₹)</label>
                   <input
                     type="number"
                     value={editingProduct.discountPrice}
                     onChange={(e) => setEditingProduct({ ...editingProduct, discountPrice: Number(e.target.value) })}
-                    className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md"
+                    className="typo-input typo-tabular bg-[#FAF7F5] border border-[#EBE4DD] rounded-lg focus:outline-none focus:border-[#7A1438]"
                   />
                 </div>
                 <div>
-                  <label className="font-semibold text-neutral-700 block mb-1 font-sans">Stock Count</label>
+                  <label className="typo-label text-neutral-700 block mb-1.5">Stock Count</label>
                   <input
                     type="number"
                     value={editingProduct.stockQuantity}
                     onChange={(e) => setEditingProduct({ ...editingProduct, stockQuantity: Number(e.target.value) })}
-                    className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md"
+                    className="typo-input typo-tabular bg-[#FAF7F5] border border-[#EBE4DD] rounded-lg focus:outline-none focus:border-[#7A1438]"
                   />
                 </div>
               </div>
@@ -716,13 +714,13 @@ export const AdminDashboard: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setEditingProduct(null)}
-                  className="py-2 px-4 text-neutral-600 hover:text-black font-semibold"
+                  className="min-h-10 py-2 px-4 typo-btn-sm text-neutral-600 hover:text-black cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="py-2.5 px-6 font-semibold text-white bg-[#5B112B] hover:bg-[#430C1F] rounded-md"
+                  className="min-h-11 py-2.5 px-6 typo-btn text-white bg-[#5B112B] hover:bg-[#430C1F] rounded-lg transition-colors cursor-pointer"
                 >
                   Save Changes
                 </button>

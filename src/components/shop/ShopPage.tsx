@@ -272,16 +272,16 @@ export const ShopPage: React.FC = () => {
   const currentExpandedPages = Math.min(totalPages, Math.ceil(visibleCount / pageSize));
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8">
+    <div className="vyora-container vyora-page space-y-8">
       {/* 1. Breadcrumb Navigation */}
-      <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 text-xs text-neutral-500 font-medium">
+      <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 typo-meta text-neutral-500">
         <button
           onClick={() => setActivePage('home')}
           className="hover:text-[#7A1438] transition-colors cursor-pointer"
         >
           Home
         </button>
-        <ChevronRight className="w-3.5 h-3.5 text-neutral-400" />
+        <ChevronRight className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
         <button
           onClick={() => openCategoryPage('all', null)}
           className={`transition-colors cursor-pointer ${
@@ -292,7 +292,7 @@ export const ShopPage: React.FC = () => {
         </button>
         {selectedCategory !== 'all' && (
           <>
-            <ChevronRight className="w-3.5 h-3.5 text-neutral-400" />
+            <ChevronRight className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
             <button
               onClick={() => openCategoryPage(selectedCategory, null)}
               className={`transition-colors cursor-pointer ${
@@ -305,7 +305,7 @@ export const ShopPage: React.FC = () => {
         )}
         {selectedSubCategory && (
           <>
-            <ChevronRight className="w-3.5 h-3.5 text-neutral-400" />
+            <ChevronRight className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
             <span className="text-[#7A1438] font-semibold">
               {selectedSubCategory === '__women__' ? "Women's Collection" : selectedSubCategory}
             </span>
@@ -325,37 +325,37 @@ export const ShopPage: React.FC = () => {
 
         <div className="relative z-10 p-6 sm:p-9 lg:p-10 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
           <div className="max-w-2xl space-y-2.5">
-            <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#D4AF37]">
+            <div className="flex flex-wrap items-center gap-2 typo-eyebrow text-[#D4AF37]">
               <Sparkles className="w-3.5 h-3.5 shrink-0" />
               <span>{activeMeta.eyebrow}</span>
             </div>
-            <h1 className="font-serif text-2xl sm:text-4xl font-bold text-white leading-tight">
+            <h1 className="typo-h1 text-white">
               {pageTitle}
             </h1>
-            <p className="text-xs sm:text-sm text-rose-100/85 leading-relaxed font-light">
+            <p className="typo-body text-rose-100/90">
               {pageDescription}
             </p>
           </div>
 
           <div className="flex flex-col sm:flex-row lg:flex-col items-start sm:items-center lg:items-end gap-2.5 shrink-0">
-            <div className="px-4 py-2 rounded-full bg-white/10 backdrop-blur-xs border border-[#D4AF37]/40 text-white text-xs font-mono tabular-nums">
+            <div className="px-4 py-2 rounded-full bg-white/10 backdrop-blur-xs border border-[#D4AF37]/40 text-white typo-meta typo-tabular">
               <strong className="text-[#D4AF37]">{filteredProducts.length}</strong>{' '}
               {filteredProducts.length === 1 ? 'Product' : 'Products'} Available
             </div>
-            <div className="flex items-center gap-1.5 text-[11px] text-rose-100/90">
+            <div className="flex items-center gap-1.5 typo-meta text-rose-100/90">
               <Award className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
               <span>{activeMeta.assuranceBadge}</span>
             </div>
             <button
               type="button"
               onClick={requestLocationPicker}
-              className="flex items-center gap-1.5 text-[11px] text-emerald-300 hover:text-white font-medium transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 typo-meta text-emerald-300 hover:text-white transition-colors cursor-pointer text-left"
             >
               <Truck className="w-3.5 h-3.5 shrink-0" />
               <span>
                 Delivering to {locationLabel} · Est. {estDate}
               </span>
-              <MapPin className="w-3 h-3 text-[#D4AF37] shrink-0" />
+              <MapPin className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
             </button>
           </div>
         </div>
@@ -363,10 +363,10 @@ export const ShopPage: React.FC = () => {
 
       {/* 3. Quick Category Switcher Bar (Includes Women, Men & All 12 Categories) */}
       <div className="space-y-2.5">
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5">
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1.5">
           <button
             onClick={() => openCategoryPage('all', null)}
-            className={`py-2 px-3.5 text-xs font-semibold rounded-full whitespace-nowrap transition-colors cursor-pointer ${
+            className={`min-h-10 px-4 typo-btn-sm rounded-full whitespace-nowrap transition-colors cursor-pointer ${
               selectedCategory === 'all'
                 ? 'bg-[#4A0E17] text-white shadow-2xs'
                 : 'bg-white hover:bg-[#F3ECE7] text-neutral-700 border border-[#E5D9CE]'
@@ -376,7 +376,7 @@ export const ShopPage: React.FC = () => {
           </button>
           <button
             onClick={() => openCategoryPage('fashion', '__women__')}
-            className={`py-2 px-3.5 text-xs font-semibold rounded-full whitespace-nowrap transition-colors cursor-pointer ${
+            className={`min-h-10 px-4 typo-btn-sm rounded-full whitespace-nowrap transition-colors cursor-pointer ${
               isWomenView
                 ? 'bg-[#4A0E17] text-white shadow-2xs'
                 : 'bg-white hover:bg-[#F3ECE7] text-neutral-700 border border-[#E5D9CE]'
@@ -386,7 +386,7 @@ export const ShopPage: React.FC = () => {
           </button>
           <button
             onClick={() => openCategoryPage('fashion', "Men's Ethnic Wear")}
-            className={`py-2 px-3.5 text-xs font-semibold rounded-full whitespace-nowrap transition-colors cursor-pointer ${
+            className={`min-h-10 px-4 typo-btn-sm rounded-full whitespace-nowrap transition-colors cursor-pointer ${
               isMenView
                 ? 'bg-[#4A0E17] text-white shadow-2xs'
                 : 'bg-white hover:bg-[#F3ECE7] text-neutral-700 border border-[#E5D9CE]'
@@ -402,7 +402,7 @@ export const ShopPage: React.FC = () => {
               <button
                 key={cat.id}
                 onClick={() => openCategoryPage(cat.id, null)}
-                className={`py-2 px-3.5 text-xs font-semibold rounded-full whitespace-nowrap transition-colors cursor-pointer ${
+                className={`min-h-10 px-4 typo-btn-sm rounded-full whitespace-nowrap transition-colors cursor-pointer ${
                   isSelected
                     ? 'bg-[#4A0E17] text-white shadow-2xs'
                     : 'bg-white hover:bg-[#F3ECE7] text-neutral-700 border border-[#E5D9CE]'
@@ -416,15 +416,15 @@ export const ShopPage: React.FC = () => {
 
         {/* Subcategory Pills for Selected Category */}
         {selectedCategory !== 'all' && availableSubCategories.length > 0 && (
-          <div className="flex items-center gap-2 overflow-x-auto pt-1 pb-1 text-xs">
-            <span className="text-neutral-400 font-semibold uppercase text-[10px] tracking-wider shrink-0">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pt-1 pb-1">
+            <span className="typo-label text-neutral-400 shrink-0">
               Collections:
             </span>
             <button
               onClick={() => setSelectedSubCategory(null)}
-              className={`py-1 px-3 rounded-full text-xs transition-colors shrink-0 cursor-pointer ${
+              className={`min-h-9 px-3.5 rounded-full typo-btn-sm transition-colors shrink-0 cursor-pointer ${
                 selectedSubCategory === null
-                  ? 'bg-neutral-900 text-white font-semibold'
+                  ? 'bg-neutral-900 text-white'
                   : 'bg-[#F3ECE7] text-neutral-700 hover:bg-[#E8DCD2]'
               }`}
             >
@@ -435,9 +435,9 @@ export const ShopPage: React.FC = () => {
                 onClick={() =>
                   setSelectedSubCategory(selectedSubCategory === '__women__' ? null : '__women__')
                 }
-                className={`py-1 px-3 rounded-full text-xs transition-colors shrink-0 cursor-pointer ${
+                className={`min-h-9 px-3.5 rounded-full typo-btn-sm transition-colors shrink-0 cursor-pointer ${
                   selectedSubCategory === '__women__'
-                    ? 'bg-[#7A1438] text-white font-semibold'
+                    ? 'bg-[#7A1438] text-white'
                     : 'bg-[#F3ECE7] text-neutral-700 hover:bg-[#E8DCD2]'
                 }`}
               >
@@ -448,9 +448,9 @@ export const ShopPage: React.FC = () => {
               <button
                 key={sub}
                 onClick={() => setSelectedSubCategory(selectedSubCategory === sub ? null : sub)}
-                className={`py-1 px-3 rounded-full text-xs transition-colors shrink-0 cursor-pointer ${
+                className={`min-h-9 px-3.5 rounded-full typo-btn-sm transition-colors shrink-0 cursor-pointer ${
                   selectedSubCategory === sub
-                    ? 'bg-[#7A1438] text-white font-semibold'
+                    ? 'bg-[#7A1438] text-white'
                     : 'bg-[#F3ECE7] text-neutral-700 hover:bg-[#E8DCD2]'
                 }`}
               >
@@ -491,21 +491,21 @@ export const ShopPage: React.FC = () => {
       {/* 5. Main Layout: Faceted Filters Sidebar + Complete Category Product Grid */}
       <div id="complete-category-catalog" className="scroll-mt-24 grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
         {/* Mobile Filter & Sort Bar */}
-        <div className="lg:hidden flex items-center justify-between gap-3 bg-white p-3 rounded-xl border border-[#EBE4DD]">
+        <div className="lg:hidden flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-[#EBE4DD]">
           <button
             onClick={() => setIsMobileFilterOpen(!isMobileFilterOpen)}
-            className="flex items-center gap-2 text-xs font-semibold text-[#5B112B] cursor-pointer"
+            className="min-h-10 px-3 rounded-lg bg-[#FAF7F5] border border-[#EBE4DD] flex items-center gap-2 typo-btn-sm text-[#5B112B] cursor-pointer"
           >
-            <SlidersHorizontal className="w-4 h-4" />
+            <SlidersHorizontal className="w-4 h-4 shrink-0" />
             <span>Filters {hasActiveFilters ? '(Active)' : ''}</span>
           </button>
 
           <div className="flex items-center gap-2">
-            <span className="text-[11px] text-neutral-500">Sort:</span>
+            <span className="typo-meta text-neutral-500">Sort:</span>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as SortOption)}
-              className="text-xs font-semibold text-neutral-800 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md py-1 px-2 focus:outline-none"
+              className="min-h-10 typo-btn-sm text-neutral-800 bg-[#FAF7F5] border border-[#EBE4DD] rounded-lg py-1.5 px-3 focus:outline-none"
             >
               <option value="popular">Popularity</option>
               <option value="newest">Newest</option>
@@ -523,27 +523,27 @@ export const ShopPage: React.FC = () => {
           }`}
         >
           <div className="flex items-center justify-between pb-3 border-b border-[#F3ECE7]">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-neutral-900">
+            <div className="flex items-center gap-2 typo-label text-neutral-900">
               <SlidersHorizontal className="w-4 h-4 text-[#7A1438]" />
               <span>Filter Products</span>
             </div>
             {hasActiveFilters && (
               <button
                 onClick={resetFilters}
-                className="flex items-center gap-1 text-[11px] font-semibold text-rose-700 hover:text-rose-900 cursor-pointer"
+                className="flex items-center gap-1 typo-meta text-rose-700 hover:text-rose-900 font-semibold cursor-pointer"
               >
-                <RotateCcw className="w-3 h-3" />
+                <RotateCcw className="w-3.5 h-3.5" />
                 <span>Clear All</span>
               </button>
             )}
           </div>
 
           {/* 1. Price Filter */}
-          <div className="space-y-2">
-            <label className="text-xs font-semibold text-neutral-800 uppercase tracking-wider block">
+          <div className="space-y-2.5">
+            <label className="typo-label text-neutral-800 block">
               Price
             </label>
-            <div className="space-y-1.5 text-xs">
+            <div className="space-y-2 typo-body-sm">
               {[
                 { id: 'all', label: 'All Prices' },
                 { id: 'under2k', label: 'Under ₹2,000' },
@@ -553,14 +553,14 @@ export const ShopPage: React.FC = () => {
               ].map((range) => (
                 <label
                   key={range.id}
-                  className="flex items-center gap-2 cursor-pointer text-neutral-700 hover:text-black"
+                  className="flex items-center gap-2.5 cursor-pointer text-neutral-700 hover:text-black"
                 >
                   <input
                     type="radio"
                     name="priceRange"
                     checked={priceRange === range.id}
                     onChange={() => setPriceRange(range.id as typeof priceRange)}
-                    className="accent-[#7A1438]"
+                    className="w-4 h-4 accent-[#7A1438]"
                   />
                   <span>{range.label}</span>
                 </label>
@@ -570,26 +570,26 @@ export const ShopPage: React.FC = () => {
 
           {/* 2. Brand Filter */}
           {availableBrands.length > 0 && (
-            <div className="space-y-2 pt-4 border-t border-[#F3ECE7]">
-              <label className="text-xs font-semibold text-neutral-800 uppercase tracking-wider block">
+            <div className="space-y-2.5 pt-4 border-t border-[#F3ECE7]">
+              <label className="typo-label text-neutral-800 block">
                 Brand ({availableBrands.length})
               </label>
-              <div className="space-y-1.5 max-h-44 overflow-y-auto pr-1 text-xs">
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-1 typo-body-sm">
                 {availableBrands.map(([brand, count]) => (
                   <label
                     key={brand}
                     className="flex items-center justify-between gap-2 cursor-pointer text-neutral-700 hover:text-black"
                   >
-                    <span className="flex items-center gap-2 min-w-0">
+                    <span className="flex items-center gap-2.5 min-w-0">
                       <input
                         type="checkbox"
                         checked={selectedBrands.includes(brand)}
                         onChange={() => toggleBrand(brand)}
-                        className="rounded accent-[#7A1438]"
+                        className="w-4 h-4 rounded accent-[#7A1438] shrink-0"
                       />
                       <span className="truncate">{brand}</span>
                     </span>
-                    <span className="text-[11px] text-neutral-400 font-mono tabular-nums">
+                    <span className="typo-meta typo-tabular text-neutral-400">
                       ({count})
                     </span>
                   </label>
@@ -601,7 +601,7 @@ export const ShopPage: React.FC = () => {
           {/* 3. Color Filter */}
           {availableColors.length > 0 && (
             <div className="space-y-2.5 pt-4 border-t border-[#F3ECE7]">
-              <label className="text-xs font-semibold text-neutral-800 uppercase tracking-wider block">
+              <label className="typo-label text-neutral-800 block">
                 Color
               </label>
               <div className="flex flex-wrap gap-1.5">
@@ -612,7 +612,7 @@ export const ShopPage: React.FC = () => {
                       key={colorName}
                       type="button"
                       onClick={() => toggleColor(colorName)}
-                      className={`inline-flex items-center gap-1.5 py-1 px-2.5 rounded-full text-[11px] border transition-all cursor-pointer ${
+                      className={`inline-flex items-center gap-1.5 min-h-8 py-1 px-2.5 rounded-full typo-meta border transition-all cursor-pointer ${
                         active
                           ? 'border-[#7A1438] bg-[#FAF2EB] text-[#4A0E17] font-semibold'
                           : 'border-[#EBE4DD] bg-[#FAF7F5] text-neutral-700 hover:border-neutral-400'
@@ -622,7 +622,7 @@ export const ShopPage: React.FC = () => {
                         className="w-3 h-3 rounded-full border border-black/15 shrink-0"
                         style={{ backgroundColor: hex }}
                       />
-                      <span className="truncate max-w-[115px]">{colorName}</span>
+                      <span className="truncate max-w-[125px]">{colorName}</span>
                     </button>
                   );
                 })}
@@ -633,7 +633,7 @@ export const ShopPage: React.FC = () => {
           {/* 4. Size / Edition Filter (where applicable) */}
           {availableSizes.length > 0 && (
             <div className="space-y-2.5 pt-4 border-t border-[#F3ECE7]">
-              <label className="text-xs font-semibold text-neutral-800 uppercase tracking-wider block">
+              <label className="typo-label text-neutral-800 block">
                 Size / Variant
               </label>
               <div className="flex flex-wrap gap-1.5">
@@ -644,9 +644,9 @@ export const ShopPage: React.FC = () => {
                       key={sz}
                       type="button"
                       onClick={() => toggleSize(sz)}
-                      className={`py-1 px-2.5 rounded-md text-[11px] font-medium border transition-colors cursor-pointer ${
+                      className={`min-h-8 py-1 px-3 rounded-md typo-meta border transition-colors cursor-pointer ${
                         active
-                          ? 'bg-[#5B112B] text-white border-[#5B112B]'
+                          ? 'bg-[#5B112B] text-white border-[#5B112B] font-semibold'
                           : 'bg-white text-neutral-700 border-[#EBE4DD] hover:border-[#7A1438]'
                       }`}
                     >
@@ -659,11 +659,11 @@ export const ShopPage: React.FC = () => {
           )}
 
           {/* 5. Customer Rating Filter */}
-          <div className="space-y-2 pt-4 border-t border-[#F3ECE7]">
-            <label className="text-xs font-semibold text-neutral-800 uppercase tracking-wider block">
+          <div className="space-y-2.5 pt-4 border-t border-[#F3ECE7]">
+            <label className="typo-label text-neutral-800 block">
               Customer Rating
             </label>
-            <div className="space-y-1.5 text-xs">
+            <div className="space-y-2 typo-body-sm">
               {[
                 { val: 0, label: 'Any Rating' },
                 { val: 4.8, label: '4.8★ & above' },
@@ -672,17 +672,17 @@ export const ShopPage: React.FC = () => {
               ].map((rat) => (
                 <label
                   key={rat.val}
-                  className="flex items-center gap-2 cursor-pointer text-neutral-700 hover:text-black"
+                  className="flex items-center gap-2.5 cursor-pointer text-neutral-700 hover:text-black"
                 >
                   <input
                     type="radio"
                     name="rating"
                     checked={minRating === rat.val}
                     onChange={() => setMinRating(rat.val)}
-                    className="accent-[#7A1438]"
+                    className="w-4 h-4 accent-[#7A1438]"
                   />
                   <span className="inline-flex items-center gap-1">
-                    {rat.val > 0 && <Star className="w-3 h-3 fill-amber-400 text-amber-400" />}
+                    {rat.val > 0 && <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />}
                     {rat.label}
                   </span>
                 </label>
@@ -692,12 +692,12 @@ export const ShopPage: React.FC = () => {
 
           {/* 6. Availability Toggle */}
           <div className="pt-4 border-t border-[#F3ECE7]">
-            <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-neutral-800">
+            <label className="flex items-center gap-2.5 cursor-pointer typo-body-sm font-medium text-neutral-800">
               <input
                 type="checkbox"
                 checked={inStockOnly}
                 onChange={(e) => setInStockOnly(e.target.checked)}
-                className="rounded accent-[#7A1438]"
+                className="w-4 h-4 rounded accent-[#7A1438]"
               />
               <span>In Stock Only</span>
             </label>
@@ -708,13 +708,13 @@ export const ShopPage: React.FC = () => {
         <div className="lg:col-span-3 space-y-5">
           {/* Desktop Sort & Count Toolbar */}
           <div className="hidden lg:flex items-center justify-between bg-white px-5 py-3.5 rounded-xl border border-[#EBE4DD] shadow-2xs">
-            <p className="text-xs text-neutral-600 font-medium">
+            <p className="typo-body-sm text-neutral-600 font-medium">
               Complete Catalog:{' '}
-              <strong className="text-neutral-900 font-mono tabular-nums">
+              <strong className="text-neutral-900 typo-tabular">
                 {visibleSlice.length}
               </strong>{' '}
               of{' '}
-              <strong className="text-neutral-900 font-mono tabular-nums">
+              <strong className="text-neutral-900 typo-tabular">
                 {filteredProducts.length}
               </strong>{' '}
               {filteredProducts.length === 1 ? 'product' : 'products'} in{' '}
@@ -722,7 +722,7 @@ export const ShopPage: React.FC = () => {
             </p>
 
             <div className="flex items-center gap-2.5">
-              <label htmlFor="desktop-sort" className="text-xs font-semibold text-neutral-600">
+              <label htmlFor="desktop-sort" className="typo-meta text-neutral-600 font-semibold">
                 Sort by:
               </label>
               <div className="relative">
@@ -730,7 +730,7 @@ export const ShopPage: React.FC = () => {
                   id="desktop-sort"
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as SortOption)}
-                  className="appearance-none bg-[#FAF7F5] border border-[#E5D9CE] rounded-lg py-1.5 pl-3 pr-8 text-xs font-semibold text-neutral-900 focus:outline-none focus:border-[#7A1438] cursor-pointer"
+                  className="min-h-10 appearance-none bg-[#FAF7F5] border border-[#E5D9CE] rounded-lg py-2 pl-3.5 pr-9 typo-btn-sm text-neutral-900 focus:outline-none focus:border-[#7A1438] cursor-pointer"
                 >
                   <option value="popular">Popularity</option>
                   <option value="newest">Newest</option>
@@ -738,7 +738,7 @@ export const ShopPage: React.FC = () => {
                   <option value="price-desc">Price: High to Low</option>
                   <option value="featured">Featured Curations</option>
                 </select>
-                <ChevronDown className="w-3.5 h-3.5 text-neutral-500 absolute right-2.5 top-2 pointer-events-none" />
+                <ChevronDown className="w-4 h-4 text-neutral-500 absolute right-2.5 top-3 pointer-events-none" />
               </div>
             </div>
           </div>
@@ -750,48 +750,48 @@ export const ShopPage: React.FC = () => {
                 <button
                   key={b}
                   onClick={() => toggleBrand(b)}
-                  className="inline-flex items-center gap-1.5 py-1 px-2.5 rounded-full bg-[#FAF2EB] border border-[#D8C2B0] text-xs font-medium text-[#4A0E17] cursor-pointer"
+                  className="inline-flex items-center gap-1.5 min-h-8 py-1 px-3 rounded-full bg-[#FAF2EB] border border-[#D8C2B0] typo-meta text-[#4A0E17] cursor-pointer"
                 >
                   <span>Brand: {b}</span>
-                  <X className="w-3 h-3" />
+                  <X className="w-3.5 h-3.5" />
                 </button>
               ))}
               {selectedColors.map((c) => (
                 <button
                   key={c}
                   onClick={() => toggleColor(c)}
-                  className="inline-flex items-center gap-1.5 py-1 px-2.5 rounded-full bg-[#FAF2EB] border border-[#D8C2B0] text-xs font-medium text-[#4A0E17] cursor-pointer"
+                  className="inline-flex items-center gap-1.5 min-h-8 py-1 px-3 rounded-full bg-[#FAF2EB] border border-[#D8C2B0] typo-meta text-[#4A0E17] cursor-pointer"
                 >
                   <span>Color: {c}</span>
-                  <X className="w-3 h-3" />
+                  <X className="w-3.5 h-3.5" />
                 </button>
               ))}
               {selectedSizes.map((s) => (
                 <button
                   key={s}
                   onClick={() => toggleSize(s)}
-                  className="inline-flex items-center gap-1.5 py-1 px-2.5 rounded-full bg-[#FAF2EB] border border-[#D8C2B0] text-xs font-medium text-[#4A0E17] cursor-pointer"
+                  className="inline-flex items-center gap-1.5 min-h-8 py-1 px-3 rounded-full bg-[#FAF2EB] border border-[#D8C2B0] typo-meta text-[#4A0E17] cursor-pointer"
                 >
                   <span>Size: {s}</span>
-                  <X className="w-3 h-3" />
+                  <X className="w-3.5 h-3.5" />
                 </button>
               ))}
               {priceRange !== 'all' && (
                 <button
                   onClick={() => setPriceRange('all')}
-                  className="inline-flex items-center gap-1.5 py-1 px-2.5 rounded-full bg-[#FAF2EB] border border-[#D8C2B0] text-xs font-medium text-[#4A0E17] cursor-pointer"
+                  className="inline-flex items-center gap-1.5 min-h-8 py-1 px-3 rounded-full bg-[#FAF2EB] border border-[#D8C2B0] typo-meta text-[#4A0E17] cursor-pointer"
                 >
                   <span>Price filter</span>
-                  <X className="w-3 h-3" />
+                  <X className="w-3.5 h-3.5" />
                 </button>
               )}
               {minRating > 0 && (
                 <button
                   onClick={() => setMinRating(0)}
-                  className="inline-flex items-center gap-1.5 py-1 px-2.5 rounded-full bg-[#FAF2EB] border border-[#D8C2B0] text-xs font-medium text-[#4A0E17] cursor-pointer"
+                  className="inline-flex items-center gap-1.5 min-h-8 py-1 px-3 rounded-full bg-[#FAF2EB] border border-[#D8C2B0] typo-meta text-[#4A0E17] cursor-pointer"
                 >
                   <span>{minRating}★+</span>
-                  <X className="w-3 h-3" />
+                  <X className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
@@ -799,16 +799,16 @@ export const ShopPage: React.FC = () => {
 
           {/* Product Cards Grid */}
           {filteredProducts.length === 0 ? (
-            <div className="bg-white p-12 rounded-2xl border border-[#EBE4DD] text-center space-y-4">
-              <h3 className="font-serif text-xl font-bold text-neutral-800">
+            <div className="bg-white p-10 sm:p-12 rounded-2xl border border-[#EBE4DD] text-center space-y-4">
+              <h3 className="typo-h3 text-neutral-800">
                 No matching products in {pageTitle}
               </h3>
-              <p className="text-xs sm:text-sm text-neutral-500 max-w-md mx-auto">
+              <p className="typo-body text-neutral-500 max-w-md mx-auto">
                 Try clearing one of your selected brand, color, size, or price filters to view all items in this category.
               </p>
               <button
                 onClick={resetFilters}
-                className="py-2.5 px-6 text-xs font-semibold text-white bg-[#5B112B] rounded-full hover:bg-[#380811] transition-colors cursor-pointer"
+                className="min-h-11 py-2.5 px-6 typo-btn text-white bg-[#5B112B] rounded-full hover:bg-[#380811] transition-colors cursor-pointer"
               >
                 View All Products in {activeMeta.shortLabel}
               </button>
@@ -823,7 +823,7 @@ export const ShopPage: React.FC = () => {
 
               {/* Pagination & Load More Footer */}
               <div className="pt-6 border-t border-[#EAE0D6] flex flex-col items-center gap-4">
-                <p className="text-xs text-neutral-500 font-mono tabular-nums">
+                <p className="typo-meta typo-tabular text-neutral-500">
                   Displaying {visibleSlice.length} of {filteredProducts.length} verified creations
                 </p>
 
@@ -831,14 +831,14 @@ export const ShopPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setVisibleCount((prev) => prev + pageSize)}
-                    className="py-3 px-8 rounded-full bg-[#4A0E17] hover:bg-[#7A1438] text-white text-xs sm:text-sm font-semibold shadow-sm transition-all cursor-pointer"
+                    className="min-h-11 py-3 px-8 rounded-full bg-[#4A0E17] hover:bg-[#7A1438] text-white typo-btn shadow-sm transition-all cursor-pointer"
                   >
                     Load More Products ({filteredProducts.length - visibleCount} remaining)
                   </button>
                 )}
 
                 {totalPages > 1 && (
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex flex-wrap items-center justify-center gap-1.5">
                     {Array.from({ length: totalPages }, (_, idx) => {
                       const pageNum = idx + 1;
                       const isLoaded = pageNum <= currentExpandedPages;
@@ -847,7 +847,7 @@ export const ShopPage: React.FC = () => {
                           key={pageNum}
                           type="button"
                           onClick={() => setVisibleCount(pageNum * pageSize)}
-                          className={`w-8 h-8 rounded-lg text-xs font-mono font-semibold transition-colors cursor-pointer ${
+                          className={`w-9 h-9 rounded-lg typo-btn-sm typo-tabular transition-colors cursor-pointer ${
                             pageNum === currentExpandedPages
                               ? 'bg-[#5B112B] text-white'
                               : isLoaded

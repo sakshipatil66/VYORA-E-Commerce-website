@@ -1,5 +1,17 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Product, CartItem, Order, OrderItem, User, Coupon, CategoryId, Address, OrderStatus } from '../types';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import {
+  Product,
+  CartItem,
+  Order,
+  OrderItem,
+  User,
+  Coupon,
+  CategoryId,
+  Address,
+  OrderStatus,
+  AuthModalMode,
+  DashboardTab
+} from '../types';
 import { INITIAL_PRODUCTS } from '../data/products';
 import { INITIAL_COUPONS } from '../data/coupons';
 import { getVariantProductImage } from '../components/common/ProductImage';
@@ -12,20 +24,63 @@ import {
   findLocationByCityOrState,
   resolveLocationDelivery
 } from '../data/locations';
+import {
+  AuthenticatedAccountPayload,
+  StoredCartRow,
+  fetchCurrentSession,
+  registerCustomer,
+  loginCustomer,
+  logoutCustomer,
+  requestPasswordReset,
+  confirmPasswordReset,
+  updateCustomerProfile,
+  changeCustomerPassword,
+  saveCustomerAddresses,
+  toggleCustomerWishlist,
+  syncCustomerCart,
+  createCustomerOrder,
+  updateCustomerOrderStatus
+} from '../services/authApi';
 
 const INITIAL_PRODUCT_MAP = new Map<string, Product>(
   INITIAL_PRODUCTS.map((p) => [p.id, p])
 );
 
 const PRODUCTS_STORAGE_KEY = 'vyora_products_v8';
-const USER_STORAGE_KEY = 'vyora_user_v3';
 const LOCATION_STORAGE_KEY = 'vyora_location_v2';
-const ORDERS_STORAGE_KEY = 'vyora_orders_v3';
+
+// Protected routes that require an authenticated customer session
+export const PROTECTED_PAGES = new Set<string>([
+  'profile',
+  'my_orders',
+  'order_tracking',
+  'order_confirmation',
+  'wishlist',
+  'checkout',
+  'admin'
+]);
 
 interface Toast {
   id: string;
   message: string;
   type?: 'success' | 'info' | 'warning';
+}
+
+interface RegisterInput {
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
+  confirmPassword: string;
+}
+
+interface ProfileSettingsInput {
+  name?: string;
+  phone?: string;
+  avatarUrl?: string;
+  shoppingLocationId?: string;
+  notifyOrderUpdates?: boolean;
+  notifyPromotions?: boolean;
 }
 
 interface StoreContextType {
@@ -53,7 +108,7 @@ interface StoreContextType {
   isCartDrawerOpen: boolean;
   setIsCartDrawerOpen: (open: boolean) => void;
 
-  // Wishlist
+  // Wishlist (Strictly tied to authenticated customer)
   wishlist: string[];
   toggleWishlist: (productId: string) => void;
   isInWishlist: (productId: string) => boolean;
@@ -86,25 +141,51 @@ interface StoreContextType {
   applyCoupon: (code: string) => { success: boolean; message: string };
   removeCoupon: () => void;
 
-  // Checkout & Orders
+  // Checkout & Orders (Strictly per-customer)
   orders: Order[];
+  adminOrders: Order[];
   currentOrder: Order | null;
   createOrder: (orderData: {
     address: Address;
     paymentMethod: 'UPI' | 'Card' | 'Netbanking' | 'COD';
     deliverySpeed: 'standard' | 'express';
-  }) => Order;
+  }) => Promise<Order>;
   trackOrder: (orderId: string) => void;
-  updateOrderStatus: (orderId: string, status: OrderStatus) => void;
+  updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
 
-  // User & Auth
+  // Dynamic Authentication & Customer Account
   currentUser: User | null;
-  setCurrentUser: (user: User | null) => void;
+  isAuthLoading: boolean;
   isAuthModalOpen: boolean;
   setIsAuthModalOpen: (open: boolean) => void;
-  loginAsDemoUser: (role?: 'customer' | 'admin') => void;
-  logout: () => void;
-  updateUserAddresses: (addresses: Address[]) => void;
+  authModalMode: AuthModalMode;
+  setAuthModalMode: (mode: AuthModalMode) => void;
+  openAuthModal: (mode?: AuthModalMode, redirectPage?: string | null) => void;
+  dashboardTab: DashboardTab;
+  setDashboardTab: (tab: DashboardTab) => void;
+  openDashboardTab: (tab: DashboardTab) => void;
+  registerUser: (input: RegisterInput) => Promise<User>;
+  loginUser: (email: string, password: string) => Promise<User>;
+  logout: () => Promise<void>;
+  sendPasswordResetCode: (email: string) => Promise<{
+    email: string;
+    expiresInMinutes: number;
+    verificationCode: string;
+    message: string;
+  }>;
+  resetPasswordWithCode: (payload: {
+    email: string;
+    code: string;
+    newPassword: string;
+    confirmPassword: string;
+  }) => Promise<string>;
+  updateProfileSettings: (input: ProfileSettingsInput) => Promise<User>;
+  changePassword: (payload: {
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+  }) => Promise<string>;
+  updateUserAddresses: (addresses: Address[]) => Promise<void>;
 
   // Pune, Maharashtra, India Default Delivery Location
   selectedLocation: DeliveryLocation;
@@ -125,44 +206,40 @@ interface StoreContextType {
   removeToast: (id: string) => void;
 }
 
-const DEFAULT_USER: User = {
-  id: 'usr-001',
-  name: 'Priya Deshmukh',
-  email: 'priya.deshmukh@example.com',
-  phone: '',
-  role: 'customer',
-  clubTier: 'Gold',
-  clubPoints: 1450,
-  addresses: [
-    {
-      id: 'addr-pune-01',
-      fullName: 'Priya Deshmukh',
-      phone: '',
-      pincode: '',
-      city: 'Pune',
-      state: 'Maharashtra',
-      street: 'Pune, Maharashtra, India',
-      type: 'Home',
-      isDefault: true
-    },
-    {
-      id: 'addr-mum-02',
-      fullName: 'Priya Deshmukh',
-      phone: '',
-      pincode: '',
-      city: 'Mumbai',
-      state: 'Maharashtra',
-      street: 'Mumbai, Maharashtra, India',
-      type: 'Work',
-      isDefault: false
-    }
-  ]
-};
-
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
+function serializeCartRows(items: CartItem[]): StoredCartRow[] {
+  return items.map((item) => ({
+    id: item.id,
+    productId: item.productId,
+    quantity: item.quantity,
+    selectedSize: item.selectedSize,
+    selectedColor: item.selectedColor
+  }));
+}
+
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Load products from localStorage while keeping built-in catalog synced with INITIAL_PRODUCTS
+  // Purge any legacy hardcoded localStorage user/order/wishlist entries from older builds
+  useEffect(() => {
+    try {
+      const legacyKeys = [
+        'vyora_user',
+        'vyora_user_v2',
+        'vyora_user_v3',
+        'vyora_orders',
+        'vyora_orders_v2',
+        'vyora_orders_v3',
+        'vyora_wishlist',
+        'vyora_cart',
+        'vyora_saved_later'
+      ];
+      legacyKeys.forEach((k) => localStorage.removeItem(k));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  // Load product catalog while keeping built-in products synced with INITIAL_PRODUCTS
   const [products, setProducts] = useState<Product[]>(() => {
     try {
       const saved = localStorage.getItem(PRODUCTS_STORAGE_KEY);
@@ -194,6 +271,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<CategoryId>('all');
   const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null);
+  const [dashboardTab, setDashboardTab] = useState<DashboardTab>('overview');
 
   // Delivery Location (Default: Pune, Maharashtra, India)
   const [selectedLocation, setSelectedLocationState] = useState<DeliveryLocation>(() => {
@@ -212,55 +290,30 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const [locationPickerSignal, setLocationPickerSignal] = useState<number>(0);
 
-  // Cart & Saved For Later
-  const [cart, setCart] = useState<CartItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('vyora_cart');
-      if (!saved) return [];
-      const parsed: CartItem[] = JSON.parse(saved);
-      return parsed.map((item) => {
-        const fresh = INITIAL_PRODUCT_MAP.get(item.productId);
-        return fresh ? { ...item, product: fresh } : item;
-      });
-    } catch {
-      return [];
-    }
-  });
-
-  const [savedForLater, setSavedForLater] = useState<CartItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('vyora_saved_later');
-      if (!saved) return [];
-      const parsed: CartItem[] = JSON.parse(saved);
-      return parsed.map((item) => {
-        const fresh = INITIAL_PRODUCT_MAP.get(item.productId);
-        return fresh ? { ...item, product: fresh } : item;
-      });
-    } catch {
-      return [];
-    }
-  });
+  // Guest in-memory Cart & Authenticated DB-backed Cart
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [savedForLater, setSavedForLater] = useState<CartItem[]>([]);
   const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
 
-  // Wishlist
-  const [wishlist, setWishlist] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem('vyora_wishlist');
-      return saved ? JSON.parse(saved) : ['vyo-fash-02', 'vyo-jewel-01'];
-    } catch {
-      return ['vyo-fash-02', 'vyo-jewel-01'];
-    }
-  });
+  // Authenticated Customer State (NEVER defaults to Priya Deshmukh!)
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [authModalMode, setAuthModalMode] = useState<AuthModalMode>('signin');
+  const [pendingRedirectPage, setPendingRedirectPage] = useState<string | null>(null);
+
+  // Per-Customer Data (Empty when logged out)
+  const [wishlist, setWishlist] = useState<string[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [adminOrders, setAdminOrders] = useState<Order[]>([]);
+  const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
 
   // Recently Viewed & Compare & Quick View
-  const [recentlyViewedIds, setRecentlyViewedIds] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem('vyora_recent');
-      return saved ? JSON.parse(saved) : ['vyo-fash-02', 'vyo-jewel-01', 'vyo-beauty-01'];
-    } catch {
-      return ['vyo-fash-02', 'vyo-jewel-01', 'vyo-beauty-01'];
-    }
-  });
+  const [recentlyViewedIds, setRecentlyViewedIds] = useState<string[]>([
+    'vyo-fash-02',
+    'vyo-jewel-01',
+    'vyo-beauty-01'
+  ]);
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [compareList, setCompareList] = useState<string[]>([]);
 
@@ -271,139 +324,157 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Coupons
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
 
-  // User
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    try {
-      const saved = localStorage.getItem(USER_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : DEFAULT_USER;
-    } catch {
-      return DEFAULT_USER;
-    }
-  });
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-
-  // Orders (seeded with Pune, Maharashtra, India default delivery destination)
-  const [orders, setOrders] = useState<Order[]>(() => {
-    const defaultJewel = INITIAL_PRODUCT_MAP.get('vyo-jewel-03');
-    const seedOrder: Order = {
-      id: 'VYO-94281',
-      date: '28 Oct 2026',
-      items: [
-        {
-          productId: 'vyo-jewel-03',
-          name: 'Nizam Jhumka Earrings with Baroque Pearl Drops',
-          price: 3199,
-          quantity: 1,
-          size: 'One Size (7.5 cm drop)',
-          color: 'Pearl & Champagne Gold',
-          image: defaultJewel
-            ? getVariantProductImage(defaultJewel, 'Pearl & Champagne Gold')
-            : ''
-        }
-      ],
-      subtotal: 3199,
-      discount: 0,
-      couponApplied: 'FIRST500',
-      couponDiscount: 500,
-      deliveryFee: 0,
-      total: 2699,
-      paymentMethod: 'UPI',
-      paymentStatus: 'Paid',
-      shippingAddress: DEFAULT_USER.addresses[0],
-      status: 'shipped',
-      estimatedDeliveryDate: '04 Nov 2026',
-      trackingNumber: 'BLUEDART-PNQ-8829104',
-      courierName: 'VYORA Pune Priority Dispatch'
-    };
-    try {
-      const saved = localStorage.getItem(ORDERS_STORAGE_KEY);
-      if (saved) {
-        const parsed: Order[] = JSON.parse(saved);
-        return parsed.map((ord) => ({
-          ...ord,
-          items: ord.items.map((it) => {
-            const fresh = INITIAL_PRODUCT_MAP.get(it.productId);
-            return fresh
-              ? { ...it, image: getVariantProductImage(fresh, it.color) }
-              : it;
-          })
-        }));
-      }
-      return [seedOrder];
-    } catch {
-      return [seedOrder];
-    }
-  });
-  const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
-
   // Toasts
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  // Sync to localStorage
+  const productsRef = useRef(products);
+  productsRef.current = products;
+
+  const hydrateCartItems = useCallback((rows: StoredCartRow[]): CartItem[] => {
+    const prodMap = new Map(productsRef.current.map((p) => [p.id, p]));
+    const hydrated: CartItem[] = [];
+    for (const row of rows) {
+      const prod = prodMap.get(row.productId) || INITIAL_PRODUCT_MAP.get(row.productId);
+      if (!prod) continue;
+      hydrated.push({
+        id: row.id,
+        productId: row.productId,
+        product: prod,
+        quantity: row.quantity,
+        selectedSize: row.selectedSize,
+        selectedColor: row.selectedColor
+      });
+    }
+    return hydrated;
+  }, []);
+
+  const hydrateOrdersImages = useCallback((rawOrders: Order[]): Order[] => {
+    const prodMap = new Map(productsRef.current.map((p) => [p.id, p]));
+    return rawOrders.map((ord) => ({
+      ...ord,
+      items: ord.items.map((it) => {
+        const fresh = prodMap.get(it.productId) || INITIAL_PRODUCT_MAP.get(it.productId);
+        return fresh ? { ...it, image: getVariantProductImage(fresh, it.color) } : it;
+      })
+    }));
+  }, []);
+
+  const applyAccountPayload = useCallback(
+    (payload: AuthenticatedAccountPayload) => {
+      setCurrentUser(payload.user);
+      setWishlist(payload.wishlist || []);
+      setCart(hydrateCartItems(payload.cart || []));
+      setSavedForLater(hydrateCartItems(payload.savedForLater || []));
+      const hydratedOrders = hydrateOrdersImages(payload.orders || []);
+      setOrders(hydratedOrders);
+      setAdminOrders(
+        payload.adminOrders ? hydrateOrdersImages(payload.adminOrders) : hydratedOrders
+      );
+      setCurrentOrder(hydratedOrders[0] || null);
+
+      if (payload.user.shoppingLocationId) {
+        const matchedLoc = SELECTABLE_INDIAN_LOCATIONS.find(
+          (l) => l.id === payload.user.shoppingLocationId
+        );
+        if (matchedLoc) {
+          setSelectedLocationState(matchedLoc);
+        }
+      }
+    },
+    [hydrateCartItems, hydrateOrdersImages]
+  );
+
+  // Bootstrap server session on mount
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetchCurrentSession();
+        if (cancelled) return;
+        if (res.authenticated) {
+          applyAccountPayload(res);
+        } else {
+          setCurrentUser(null);
+          setWishlist([]);
+          setOrders([]);
+          setAdminOrders([]);
+          setCurrentOrder(null);
+        }
+      } catch {
+        if (!cancelled) {
+          setCurrentUser(null);
+          setWishlist([]);
+          setOrders([]);
+          setAdminOrders([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsAuthLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [applyAccountPayload]);
+
+  // Persist non-sensitive storefront catalog & selected city preference
   useEffect(() => {
     try {
       localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(products));
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, [products]);
 
   useEffect(() => {
     try {
       localStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(selectedLocation));
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }, [selectedLocation]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('vyora_cart', JSON.stringify(cart));
-    } catch { /* ignore */ }
-  }, [cart]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('vyora_saved_later', JSON.stringify(savedForLater));
-    } catch { /* ignore */ }
-  }, [savedForLater]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('vyora_wishlist', JSON.stringify(wishlist));
-    } catch { /* ignore */ }
-  }, [wishlist]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('vyora_recent', JSON.stringify(recentlyViewedIds));
-    } catch { /* ignore */ }
-  }, [recentlyViewedIds]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders));
-    } catch { /* ignore */ }
-  }, [orders]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(currentUser));
-    } catch { /* ignore */ }
-  }, [currentUser]);
-
   // Toast Helpers
-  const addToast = (message: string, type: 'success' | 'info' | 'warning' = 'success') => {
-    const id = Date.now().toString() + Math.random().toString().slice(2, 5);
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      removeToast(id);
-    }, 3500);
-  };
-
-  const removeToast = (id: string) => {
+  const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
+  }, []);
+
+  const addToast = useCallback(
+    (message: string, type: 'success' | 'info' | 'warning' = 'success') => {
+      const id = Date.now().toString() + Math.random().toString().slice(2, 5);
+      setToasts((prev) => [...prev, { id, message, type }]);
+      setTimeout(() => {
+        removeToast(id);
+      }, 3600);
+    },
+    [removeToast]
+  );
+
+  // Auth Modal Opener
+  const openAuthModal = useCallback(
+    (mode: AuthModalMode = 'signin', redirectPage: string | null = null) => {
+      setAuthModalMode(mode);
+      setPendingRedirectPage(redirectPage);
+      setIsAuthModalOpen(true);
+    },
+    []
+  );
+
+  const openDashboardTab = useCallback((tab: DashboardTab) => {
+    setDashboardTab(tab);
+    setActivePage('profile');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
 
   // Location Helpers (Default: Pune, Maharashtra, India)
   const setSelectedLocation = (loc: DeliveryLocation) => {
     setSelectedLocationState(loc);
+    if (currentUser) {
+      updateCustomerProfile({ shoppingLocationId: loc.id })
+        .then((res) => setCurrentUser(res.user))
+        .catch(() => {});
+    }
   };
 
   const checkLocationDelivery = (query: string): LocationLookupResult => {
@@ -413,7 +484,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const selectLocationByQuery = (query: string): LocationLookupResult => {
     const res = resolveLocationDelivery(query);
     if (res.serviceable && res.location) {
-      setSelectedLocationState(res.location);
+      setSelectedLocation(res.location);
     }
     return res;
   };
@@ -477,30 +548,42 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Helper to sync cart to backend when authenticated
+  const persistCartIfAuthenticated = useCallback(
+    (nextCart: CartItem[], nextSaved: CartItem[]) => {
+      if (!currentUser) return;
+      syncCustomerCart(serializeCartRows(nextCart), serializeCartRows(nextSaved)).catch(() => {});
+    },
+    [currentUser]
+  );
+
   // Cart operations
   const addToCart = (product: Product, quantity = 1, size?: string, color?: string) => {
-    const selectedSize = size || (product.sizes && product.sizes.length > 0 ? product.sizes[0] : undefined);
-    const selectedColor = color || (product.colors && product.colors.length > 0 ? product.colors[0].name : undefined);
+    const selectedSize =
+      size || (product.sizes && product.sizes.length > 0 ? product.sizes[0] : undefined);
+    const selectedColor =
+      color || (product.colors && product.colors.length > 0 ? product.colors[0].name : undefined);
     const itemKey = `${product.id}-${selectedSize || 'nosize'}-${selectedColor || 'nocolor'}`;
 
     setCart((prev) => {
       const existing = prev.find((item) => item.id === itemKey);
-      if (existing) {
-        return prev.map((item) =>
-          item.id === itemKey ? { ...item, quantity: item.quantity + quantity } : item
-        );
-      }
-      return [
-        ...prev,
-        {
-          id: itemKey,
-          productId: product.id,
-          product,
-          quantity,
-          selectedSize,
-          selectedColor
-        }
-      ];
+      const nextCart = existing
+        ? prev.map((item) =>
+            item.id === itemKey ? { ...item, quantity: item.quantity + quantity } : item
+          )
+        : [
+            ...prev,
+            {
+              id: itemKey,
+              productId: product.id,
+              product,
+              quantity,
+              selectedSize,
+              selectedColor
+            }
+          ];
+      persistCartIfAuthenticated(nextCart, savedForLater);
+      return nextCart;
     });
 
     addToast(`Added "${product.name.slice(0, 26)}..." to bag`);
@@ -511,39 +594,56 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       removeFromCart(itemId);
       return;
     }
-    setCart((prev) =>
-      prev.map((item) => (item.id === itemId ? { ...item, quantity: newQuantity } : item))
-    );
+    setCart((prev) => {
+      const nextCart = prev.map((item) =>
+        item.id === itemId ? { ...item, quantity: newQuantity } : item
+      );
+      persistCartIfAuthenticated(nextCart, savedForLater);
+      return nextCart;
+    });
   };
 
   const removeFromCart = (itemId: string) => {
-    setCart((prev) => prev.filter((item) => item.id !== itemId));
+    setCart((prev) => {
+      const nextCart = prev.filter((item) => item.id !== itemId);
+      persistCartIfAuthenticated(nextCart, savedForLater);
+      return nextCart;
+    });
     addToast('Item removed from shopping bag', 'info');
   };
 
   const saveForLater = (itemId: string) => {
     const item = cart.find((i) => i.id === itemId);
     if (!item) return;
-    setCart((prev) => prev.filter((i) => i.id !== itemId));
-    setSavedForLater((prev) => [...prev, item]);
+    const nextCart = cart.filter((i) => i.id !== itemId);
+    const nextSaved = [...savedForLater.filter((i) => i.id !== itemId), item];
+    setCart(nextCart);
+    setSavedForLater(nextSaved);
+    persistCartIfAuthenticated(nextCart, nextSaved);
     addToast('Saved for later');
   };
 
   const moveToCartFromSaved = (itemId: string) => {
     const item = savedForLater.find((i) => i.id === itemId);
     if (!item) return;
-    setSavedForLater((prev) => prev.filter((i) => i.id !== itemId));
-    setCart((prev) => [...prev, item]);
+    const nextSaved = savedForLater.filter((i) => i.id !== itemId);
+    const nextCart = [...cart.filter((i) => i.id !== itemId), item];
+    setSavedForLater(nextSaved);
+    setCart(nextCart);
+    persistCartIfAuthenticated(nextCart, nextSaved);
     addToast('Moved back to shopping bag');
   };
 
   const removeSavedForLater = (itemId: string) => {
-    setSavedForLater((prev) => prev.filter((i) => i.id !== itemId));
+    const nextSaved = savedForLater.filter((i) => i.id !== itemId);
+    setSavedForLater(nextSaved);
+    persistCartIfAuthenticated(cart, nextSaved);
     addToast('Item removed from saved list', 'info');
   };
 
   const clearCart = () => {
     setCart([]);
+    persistCartIfAuthenticated([], savedForLater);
   };
 
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
@@ -595,28 +695,47 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     addToast('Coupon removed', 'info');
   };
 
-  // Wishlist operations
+  // Wishlist operations (Requires authentication so each customer sees ONLY their own wishlist)
   const toggleWishlist = (productId: string) => {
-    setWishlist((prev) => {
-      const exists = prev.includes(productId);
-      if (exists) {
-        addToast('Removed from Wishlist', 'info');
-        return prev.filter((id) => id !== productId);
-      } else {
-        addToast('Saved to Wishlist');
-        return [...prev, productId];
-      }
-    });
+    if (!currentUser) {
+      addToast('Please sign in or create an account to save items to your wishlist.', 'info');
+      openAuthModal('signin');
+      return;
+    }
+
+    const wasSaved = wishlist.includes(productId);
+    // Optimistic update backed by server SQLite row isolation
+    setWishlist((prev) =>
+      wasSaved ? prev.filter((id) => id !== productId) : [productId, ...prev]
+    );
+
+    toggleCustomerWishlist(productId)
+      .then((res) => {
+        setWishlist(res.wishlist);
+        addToast(res.added ? 'Saved to your personal Wishlist' : 'Removed from Wishlist', 'info');
+      })
+      .catch((err) => {
+        // Revert on error
+        setWishlist((prev) =>
+          wasSaved ? [productId, ...prev] : prev.filter((id) => id !== productId)
+        );
+        addToast(err.message || 'Unable to update wishlist', 'warning');
+      });
   };
 
   const isInWishlist = (productId: string) => wishlist.includes(productId);
 
-  // Create Order with location-based delivery estimate
-  const createOrder = (orderData: {
+  // Create Order (Persisted to authenticated customer's database account)
+  const createOrder = async (orderData: {
     address: Address;
     paymentMethod: 'UPI' | 'Card' | 'Netbanking' | 'COD';
     deliverySpeed: 'standard' | 'express';
-  }): Order => {
+  }): Promise<Order> => {
+    if (!currentUser) {
+      openAuthModal('signin', 'checkout');
+      throw new Error('Please sign in to place an order.');
+    }
+
     const newOrderId = `VYO-${Math.floor(10000 + Math.random() * 90000)}`;
     const items: OrderItem[] = cart.map((item) => ({
       productId: item.productId,
@@ -661,7 +780,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       country: 'India'
     });
 
-    const newOrder: Order = {
+    const draftOrder: Order = {
       id: newOrderId,
       date: now.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
       items,
@@ -682,25 +801,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       courierName: isPuneDest ? 'VYORA Pune Priority Dispatch' : 'Blue Dart Air Express'
     };
 
-    setOrders((prev) => [newOrder, ...prev]);
-    setCurrentOrder(newOrder);
-    clearCart();
+    const res = await createCustomerOrder(draftOrder);
+    const hydratedOrders = hydrateOrdersImages(res.orders);
+    const confirmedOrder = hydratedOrders[0] || draftOrder;
+
+    setOrders(hydratedOrders);
+    if (currentUser.role === 'admin') {
+      setAdminOrders((prev) => [confirmedOrder, ...prev]);
+    }
+    setCurrentOrder(confirmedOrder);
+    setCurrentUser(res.user);
+    setCart([]);
     setAppliedCoupon(null);
 
-    if (currentUser) {
-      const addedPoints = Math.round(finalTotal / 10);
-      setCurrentUser({
-        ...currentUser,
-        clubPoints: currentUser.clubPoints + addedPoints
-      });
-    }
-
-    addToast(`Order ${newOrderId} confirmed for ${destLabel}!`);
-    return newOrder;
+    addToast(`Order ${confirmedOrder.id} confirmed for ${destLabel}!`);
+    return confirmedOrder;
   };
 
   const trackOrder = (orderId: string) => {
-    const order = orders.find((o) => o.id === orderId);
+    const order = orders.find((o) => o.id === orderId) || adminOrders.find((o) => o.id === orderId);
     if (order) {
       setCurrentOrder(order);
       setActivePage('order_tracking');
@@ -708,53 +827,132 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const updateOrderStatus = (orderId: string, status: OrderStatus) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status } : o))
-    );
+  const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
+    const res = await updateCustomerOrderStatus(orderId, status);
+    const nextOrders = hydrateOrdersImages(res.orders);
+    setOrders(nextOrders);
+    if (res.adminOrders) {
+      setAdminOrders(hydrateOrdersImages(res.adminOrders));
+    }
     if (currentOrder && currentOrder.id === orderId) {
       setCurrentOrder((prev) => (prev ? { ...prev, status } : null));
     }
     addToast(`Order #${orderId} marked as ${status.replace('_', ' ').toUpperCase()}`);
   };
 
-  // User management
-  const loginAsDemoUser = (role: 'customer' | 'admin' = 'customer') => {
-    if (role === 'admin') {
-      const adminUser: User = {
-        id: 'usr-admin-01',
-        name: 'Devraj Chauhan',
-        email: 'admin@vyora.in',
-        phone: '',
-        role: 'admin',
-        clubTier: 'Platinum',
-        clubPoints: 8500,
-        addresses: DEFAULT_USER.addresses
-      };
-      setCurrentUser(adminUser);
-      setIsAuthModalOpen(false);
-      addToast('Logged in as Store Administrator');
-    } else {
-      setCurrentUser(DEFAULT_USER);
-      setIsAuthModalOpen(false);
-      addToast('Welcome back, Priya!');
+  // ==========================================================================
+  // DYNAMIC AUTHENTICATION ACTIONS
+  // ==========================================================================
+  const registerUser = async (input: RegisterInput): Promise<User> => {
+    const payload = await registerCustomer({
+      ...input,
+      shoppingLocationId: selectedLocation.id,
+      shoppingCity: selectedLocation.city,
+      shoppingState: selectedLocation.state,
+      guestCart: serializeCartRows(cart),
+      guestSavedForLater: serializeCartRows(savedForLater)
+    });
+
+    applyAccountPayload(payload);
+    setIsAuthModalOpen(false);
+    const dest = pendingRedirectPage || 'profile';
+    setPendingRedirectPage(null);
+    setDashboardTab('overview');
+    setActivePage(dest);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    addToast(`Welcome to VYORA, ${payload.user.name.split(' ')[0]}! Your account is ready.`);
+    return payload.user;
+  };
+
+  const loginUser = async (email: string, password: string): Promise<User> => {
+    const payload = await loginCustomer({
+      email,
+      password,
+      guestCart: serializeCartRows(cart),
+      guestSavedForLater: serializeCartRows(savedForLater)
+    });
+
+    applyAccountPayload(payload);
+    setIsAuthModalOpen(false);
+    const dest = pendingRedirectPage;
+    setPendingRedirectPage(null);
+    if (dest) {
+      setActivePage(dest);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
+    addToast(`Welcome back, ${payload.user.name.split(' ')[0]}!`);
+    return payload.user;
   };
 
-  const logout = () => {
+  const logout = async (): Promise<void> => {
+    await logoutCustomer();
     setCurrentUser(null);
-    addToast('Signed out successfully', 'info');
+    setWishlist([]);
+    setOrders([]);
+    setAdminOrders([]);
+    setCurrentOrder(null);
+    setCart([]);
+    setSavedForLater([]);
+    setAppliedCoupon(null);
+    setDashboardTab('overview');
+
+    if (PROTECTED_PAGES.has(activePage)) {
+      setActivePage('home');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    addToast('You have been securely signed out.', 'info');
   };
 
-  const updateUserAddresses = (addresses: Address[]) => {
-    if (currentUser) {
-      setCurrentUser({ ...currentUser, addresses });
-      const defaultAddr = addresses.find((a) => a.isDefault);
-      if (defaultAddr) {
-        const matched = findLocationByCityOrState(`${defaultAddr.city}, ${defaultAddr.state}`);
-        if (matched) setSelectedLocationState(matched);
+  const sendPasswordResetCode = async (email: string) => {
+    return requestPasswordReset(email);
+  };
+
+  const resetPasswordWithCode = async (payload: {
+    email: string;
+    code: string;
+    newPassword: string;
+    confirmPassword: string;
+  }): Promise<string> => {
+    const res = await confirmPasswordReset(payload);
+    addToast('Password reset successful. Please sign in with your new password.');
+    return res.message;
+  };
+
+  const updateProfileSettings = async (input: ProfileSettingsInput): Promise<User> => {
+    const res = await updateCustomerProfile(input);
+    setCurrentUser(res.user);
+    if (res.user.shoppingLocationId) {
+      const matched = SELECTABLE_INDIAN_LOCATIONS.find(
+        (l) => l.id === res.user.shoppingLocationId
+      );
+      if (matched) setSelectedLocationState(matched);
+    }
+    addToast('Account profile updated successfully.');
+    return res.user;
+  };
+
+  const changePassword = async (payload: {
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+  }): Promise<string> => {
+    const res = await changeCustomerPassword(payload);
+    addToast('Your account password has been updated.');
+    return res.message;
+  };
+
+  const updateUserAddresses = async (addresses: Address[]): Promise<void> => {
+    const res = await saveCustomerAddresses(addresses);
+    setCurrentUser(res.user);
+    const defaultAddr = res.user.addresses.find((a) => a.isDefault);
+    if (defaultAddr) {
+      const matched = findLocationByCityOrState(`${defaultAddr.city}, ${defaultAddr.state}`);
+      if (matched) {
+        setSelectedLocationState(matched);
+        updateCustomerProfile({ shoppingLocationId: matched.id })
+          .then((prof) => setCurrentUser(prof.user))
+          .catch(() => {});
       }
-      addToast('Address book updated');
     }
   };
 
@@ -770,9 +968,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateProduct = (updated: Product) => {
-    setProducts((prev) =>
-      prev.map((p) => (p.id === updated.id ? updated : p))
-    );
+    setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
     addToast(`Product "${updated.name}" updated!`);
   };
 
@@ -837,17 +1033,29 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         removeCoupon,
 
         orders,
+        adminOrders,
         currentOrder,
         createOrder,
         trackOrder,
         updateOrderStatus,
 
         currentUser,
-        setCurrentUser,
+        isAuthLoading,
         isAuthModalOpen,
         setIsAuthModalOpen,
-        loginAsDemoUser,
+        authModalMode,
+        setAuthModalMode,
+        openAuthModal,
+        dashboardTab,
+        setDashboardTab,
+        openDashboardTab,
+        registerUser,
+        loginUser,
         logout,
+        sendPasswordResetCode,
+        resetPasswordWithCode,
+        updateProfileSettings,
+        changePassword,
         updateUserAddresses,
 
         selectedLocation,

@@ -12,17 +12,17 @@ export const AnnouncementBar: React.FC = () => {
   return (
     <aside
       aria-label="Special promotions"
-      className="bg-[#380811] text-[#FAF6F2] text-[11px] sm:text-xs py-2 px-4 border-b border-[#D4AF37]/20 transition-all duration-200"
+      className="bg-[#380811] text-[#FAF6F2] typo-meta py-2 border-b border-[#D4AF37]/20 transition-all duration-200"
     >
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-        <div className="hidden lg:flex items-center gap-3 text-[11px] text-rose-200/85 shrink-0">
+      <div className="vyora-container flex items-center justify-between gap-3 sm:gap-4">
+        <div className="hidden lg:flex items-center gap-3 typo-meta text-rose-200/85 shrink-0">
           <button
             type="button"
             onClick={requestLocationPicker}
             title="Change delivery location"
             className="inline-flex items-center gap-1 text-[#D4AF37] hover:text-white font-semibold transition-colors cursor-pointer"
           >
-            <MapPin className="w-3 h-3" />
+            <MapPin className="w-3.5 h-3.5" />
             <span>{formatLocationLabel(selectedLocation)}</span>
           </button>
           <span aria-hidden="true">·</span>
@@ -34,7 +34,7 @@ export const AnnouncementBar: React.FC = () => {
           </button>
         </div>
 
-        <div className="flex-1 flex items-center justify-center gap-2.5 text-center truncate">
+        <div className="flex-1 min-w-0 flex items-center justify-center gap-2 text-center">
           <Sparkles className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
           <span className="font-medium tracking-wide truncate">
             Complimentary Express Shipping Above ₹999 Across All 12 Departments
@@ -54,19 +54,19 @@ export const AnnouncementBar: React.FC = () => {
           </span>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
           <button
             onClick={() => setActivePage('offers')}
-            className="text-[11px] uppercase tracking-wider text-[#D4AF37] hover:text-white font-semibold transition-colors cursor-pointer"
+            className="typo-label text-[#D4AF37] hover:text-white transition-colors cursor-pointer"
           >
             Privileges
           </button>
           <button
             onClick={() => setIsVisible(false)}
             aria-label="Dismiss announcement"
-            className="text-rose-300/80 hover:text-white p-0.5 rounded transition-colors cursor-pointer"
+            className="text-rose-300/80 hover:text-white p-1 rounded transition-colors cursor-pointer"
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
       </div>

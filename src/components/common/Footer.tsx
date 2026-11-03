@@ -31,7 +31,9 @@ export const Footer: React.FC = () => {
     applyCoupon,
     addToast,
     selectedLocation,
-    requestLocationPicker
+    requestLocationPicker,
+    currentUser,
+    openAuthModal
   } = useStore();
 
   const [emailInput, setEmailInput] = useState('');
@@ -79,17 +81,17 @@ export const Footer: React.FC = () => {
   };
 
   return (
-    <footer className="bg-[#1E040A] text-[#FAF6F2] border-t border-[#4A0E17] mt-14">
+    <footer className="bg-[#1E040A] text-[#FAF6F2] border-t border-[#4A0E17] mt-12 sm:mt-16">
       {/* Top 4 Luxury Assurance Pillars */}
       <div className="border-b border-[#4A0E17]/80 bg-[#28060E]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-9 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="vyora-container py-8 sm:py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="flex items-start gap-3.5">
             <div className="w-10 h-10 rounded-full bg-[#4A0E17] border border-[#D4AF37]/35 flex items-center justify-center shrink-0 text-[#D4AF37]">
               <Award className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="text-sm font-semibold text-white">Certified Authenticity</h4>
-              <p className="text-xs text-rose-200/75 mt-0.5 leading-relaxed">
+              <h4 className="typo-h4 text-white">Certified Authenticity</h4>
+              <p className="typo-body-sm text-rose-200/75 mt-1">
                 Silk Mark, BIS 925, Ayush GMP & warranty backed across 12 categories
               </p>
             </div>
@@ -100,8 +102,8 @@ export const Footer: React.FC = () => {
               <Truck className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="text-sm font-semibold text-white">Insured Express Dispatch</h4>
-              <p className="text-xs text-rose-200/75 mt-0.5 leading-relaxed">
+              <h4 className="typo-h4 text-white">Insured Express Dispatch</h4>
+              <p className="typo-body-sm text-rose-200/75 mt-1">
                 Priority hub in Pune, Maharashtra, India · Free shipping above ₹999
               </p>
             </div>
@@ -112,8 +114,8 @@ export const Footer: React.FC = () => {
               <RotateCcw className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="text-sm font-semibold text-white">7-Day Effortless Returns</h4>
-              <p className="text-xs text-rose-200/75 mt-0.5 leading-relaxed">
+              <h4 className="typo-h4 text-white">7-Day Effortless Returns</h4>
+              <p className="typo-body-sm text-rose-200/75 mt-1">
                 Complimentary doorstep reverse pickup with swift source refund
               </p>
             </div>
@@ -124,8 +126,8 @@ export const Footer: React.FC = () => {
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="text-sm font-semibold text-white">256-Bit Encrypted Checkout</h4>
-              <p className="text-xs text-rose-200/75 mt-0.5 leading-relaxed">
+              <h4 className="typo-h4 text-white">256-Bit Encrypted Checkout</h4>
+              <p className="typo-body-sm text-rose-200/75 mt-1">
                 Verified UPI, RuPay, Visa, Mastercard, NetBanking & Cash on Delivery
               </p>
             </div>
@@ -135,32 +137,32 @@ export const Footer: React.FC = () => {
 
       {/* Luxury Newsletter & Private Dispatch Strip */}
       <div className="border-b border-[#4A0E17]/70 bg-gradient-to-r from-[#24050C] via-[#340914] to-[#24050C]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="vyora-container py-8 sm:py-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="space-y-1.5 max-w-xl">
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] text-[#D4AF37]">
+            <div className="flex items-center gap-1.5 typo-eyebrow text-[#D4AF37]">
               <Sparkles className="w-3.5 h-3.5" />
               <span>VYORA Connoisseur Newsletter</span>
             </div>
-            <h3 className="font-serif text-xl sm:text-2xl font-bold text-white">
+            <h3 className="typo-h3 text-white">
               Join Our Private Dispatch & Unlock ₹500 Off (Code: FIRST500)
             </h3>
-            <p className="text-xs text-rose-100/75 leading-relaxed">
+            <p className="typo-body-sm text-rose-100/75">
               Receive early invitations to seasonal Banarasi weaves, Polki jewellery drops, teak audio releases, and festive gifting privileges.
             </p>
           </div>
 
-          <form onSubmit={handleSubscribe} className="w-full lg:w-[440px] flex flex-col sm:flex-row gap-2.5">
+          <form onSubmit={handleSubscribe} className="w-full lg:w-[460px] flex flex-col sm:flex-row gap-2.5">
             <input
               type="email"
               value={emailInput}
               onChange={(e) => setEmailInput(e.target.value)}
               placeholder="Enter your email address"
               aria-label="Subscribe to VYORA newsletter"
-              className="flex-1 py-2.5 px-4 text-xs sm:text-sm bg-[#1A0308] border border-[#6E1733] rounded-full text-white placeholder:text-rose-200/45 focus:outline-none focus:border-[#D4AF37]"
+              className="flex-1 min-h-11 py-2.5 px-4 typo-input-bare bg-[#1A0308] border border-[#6E1733] rounded-full text-white placeholder:text-rose-200/45 focus:outline-none focus:border-[#D4AF37]"
             />
             <button
               type="submit"
-              className="py-2.5 px-6 text-xs sm:text-sm font-semibold bg-[#D4AF37] hover:bg-[#C69F26] text-neutral-950 rounded-full transition-colors flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+              className="min-h-11 py-2.5 px-6 typo-btn bg-[#D4AF37] hover:bg-[#C69F26] text-neutral-950 rounded-full transition-colors flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
             >
               {subscribed ? <Check className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
               <span>{subscribed ? 'Subscribed' : 'Subscribe'}</span>
@@ -170,10 +172,10 @@ export const Footer: React.FC = () => {
       </div>
 
       {/* Main Multi-Column Footer */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14 lg:py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10">
+      <div className="vyora-container vyora-section">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-10">
           {/* Column 1: Brand Identity, Pune Location & Social Channels (4 Cols) */}
-          <div className="lg:col-span-4 space-y-5">
+          <div className="sm:col-span-2 lg:col-span-4 space-y-5">
             <button
               type="button"
               onClick={() => handleNav('home')}
@@ -186,28 +188,28 @@ export const Footer: React.FC = () => {
                 <span className="font-serif text-2xl font-bold tracking-[0.06em] text-white block leading-none">
                   VYORA
                 </span>
-                <span className="text-[9px] uppercase tracking-[0.22em] text-[#D4AF37] font-semibold mt-1 block">
+                <span className="typo-badge tracking-[0.18em] text-[#D4AF37] mt-1 block">
                   Modern Indian Marketplace
                 </span>
               </div>
             </button>
 
-            <p className="text-xs text-rose-100/75 leading-relaxed max-w-sm">
+            <p className="typo-body-sm text-rose-100/75 max-w-sm">
               India’s luxury multi-category marketplace celebrating certified handloom fashion, fine jewellery, Ayurvedic beauty, acoustic electronics, handcrafted footwear, home décor, bags, and royal gifting.
             </p>
 
             {/* Verified Location & Concierge Details */}
-            <div className="space-y-2.5 text-xs text-rose-100/85 bg-[#28060E] border border-[#4A0E17] rounded-xl p-4 max-w-sm">
+            <div className="space-y-2.5 typo-body-sm text-rose-100/85 bg-[#28060E] border border-[#4A0E17] rounded-xl p-4 max-w-sm">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-start gap-2.5">
                   <MapPin className="w-4 h-4 text-[#D4AF37] shrink-0 mt-0.5" />
                   <div>
-                    <span className="text-[10px] uppercase tracking-wider text-rose-200/60 block">
+                    <span className="typo-label text-rose-200/60 block">
                       Marketplace Location
                     </span>
-                    <span className="font-semibold text-white block">Pune, Maharashtra, India</span>
+                    <span className="font-semibold text-white block mt-0.5">Pune, Maharashtra, India</span>
                     {activeLocationText !== 'Pune, Maharashtra, India' && (
-                      <span className="text-[11px] text-[#D4AF37] block mt-0.5">
+                      <span className="typo-meta text-[#D4AF37] block mt-0.5">
                         Delivering to: {activeLocationText}
                       </span>
                     )}
@@ -216,7 +218,7 @@ export const Footer: React.FC = () => {
                 <button
                   type="button"
                   onClick={requestLocationPicker}
-                  className="text-[11px] font-semibold text-[#D4AF37] hover:underline shrink-0 cursor-pointer"
+                  className="typo-meta font-semibold text-[#D4AF37] hover:underline shrink-0 cursor-pointer"
                 >
                   Change
                 </button>
@@ -236,7 +238,7 @@ export const Footer: React.FC = () => {
 
             {/* Social Media Icons */}
             <div className="space-y-2">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-rose-200/60 block">
+              <span className="typo-footer-heading text-rose-200/60 block">
                 Follow VYORA
               </span>
               <div className="flex items-center gap-2.5">
@@ -309,11 +311,11 @@ export const Footer: React.FC = () => {
           </div>
 
           {/* Column 2: Shop by Category (3 Cols) */}
-          <div className="lg:col-span-3 space-y-3">
-            <h5 className="text-xs font-semibold uppercase tracking-[0.2em] text-[#D4AF37]">
+          <div className="lg:col-span-3 space-y-3.5">
+            <h5 className="typo-footer-heading text-[#D4AF37]">
               Shop by Category
             </h5>
-            <ul className="space-y-2 text-xs text-rose-100/75">
+            <ul className="space-y-2.5 typo-footer-link text-rose-100/75">
               <li>
                 <button type="button" onClick={() => handleNav('shop', 'fashion', '__women__')} className="hover:text-white transition-colors cursor-pointer text-left">
                   Women’s Designer Fashion
@@ -378,11 +380,11 @@ export const Footer: React.FC = () => {
           </div>
 
           {/* Column 3: Popular Products & Collections (3 Cols) */}
-          <div className="lg:col-span-3 space-y-3">
-            <h5 className="text-xs font-semibold uppercase tracking-[0.2em] text-[#D4AF37]">
+          <div className="lg:col-span-3 space-y-3.5">
+            <h5 className="typo-footer-heading text-[#D4AF37]">
               Popular & Collections
             </h5>
-            <ul className="space-y-2 text-xs text-rose-100/75">
+            <ul className="space-y-2.5 typo-footer-link text-rose-100/75">
               <li>
                 <button
                   type="button"
@@ -419,8 +421,8 @@ export const Footer: React.FC = () => {
                   Festive Offers & Privilege Codes
                 </button>
               </li>
-              <li className="pt-2 border-t border-[#4A0E17]/60">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-rose-200/55 block mb-1.5">
+              <li className="pt-2.5 border-t border-[#4A0E17]/60">
+                <span className="typo-label text-rose-200/55 block mb-1">
                   Signature Creations
                 </span>
               </li>
@@ -439,11 +441,11 @@ export const Footer: React.FC = () => {
           </div>
 
           {/* Column 4: Customer Support, Company & Legal Policies (2 Cols) */}
-          <div className="lg:col-span-2 space-y-3">
-            <h5 className="text-xs font-semibold uppercase tracking-[0.2em] text-[#D4AF37]">
+          <div className="lg:col-span-2 space-y-3.5">
+            <h5 className="typo-footer-heading text-[#D4AF37]">
               Support & Policies
             </h5>
-            <ul className="space-y-2 text-xs text-rose-100/75">
+            <ul className="space-y-2.5 typo-footer-link text-rose-100/75">
               <li>
                 <button type="button" onClick={() => handleNav('contact')} className="hover:text-white transition-colors cursor-pointer text-left">
                   Customer Support
@@ -485,6 +487,15 @@ export const Footer: React.FC = () => {
                 </button>
               </li>
               <li>
+                <button
+                  type="button"
+                  onClick={() => (currentUser ? handleNav('profile') : openAuthModal('signin'))}
+                  className="hover:text-white transition-colors cursor-pointer text-left"
+                >
+                  {currentUser ? 'Customer Dashboard' : 'Sign In / Create Account'}
+                </button>
+              </li>
+              <li>
                 <button type="button" onClick={() => handleNav('my_orders')} className="hover:text-white transition-colors cursor-pointer text-left">
                   My Orders & Tracking
                 </button>
@@ -494,26 +505,28 @@ export const Footer: React.FC = () => {
                   Saved Wishlist
                 </button>
               </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => handleNav('admin')}
-                  className="text-[#D4AF37] hover:text-amber-200 transition-colors font-semibold cursor-pointer text-left"
-                >
-                  Store Admin
-                </button>
-              </li>
+              {currentUser?.role === 'admin' && (
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => handleNav('admin')}
+                    className="text-[#D4AF37] hover:text-amber-200 transition-colors font-semibold cursor-pointer text-left"
+                  >
+                    Store Admin
+                  </button>
+                </li>
+              )}
             </ul>
           </div>
         </div>
 
         {/* Bottom Copyright, Location & Payment Method Icons Bar */}
-        <div className="pt-10 mt-12 border-t border-[#4A0E17]/80 flex flex-col lg:flex-row items-center justify-between gap-5 text-xs text-rose-200/70">
-          <div className="text-center lg:text-left space-y-1">
+        <div className="pt-10 mt-12 border-t border-[#4A0E17]/80 flex flex-col lg:flex-row items-center justify-between gap-5 typo-body-sm text-rose-200/70">
+          <div className="text-center lg:text-left space-y-1.5">
             <p className="text-rose-100/90 font-medium">
               © {new Date().getFullYear()} VYORA — Modern Indian Marketplace · Pune, Maharashtra, India. All rights reserved.
             </p>
-            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 text-[11px] text-rose-200/60">
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3 typo-meta text-rose-200/60">
               <button type="button" onClick={() => handleNav('privacy')} className="hover:text-white cursor-pointer">
                 Privacy Policy
               </button>
@@ -533,17 +546,17 @@ export const Footer: React.FC = () => {
           </div>
 
           {/* Payment Method Icons */}
-          <div className="flex flex-wrap items-center justify-center gap-2 text-[11px]">
+          <div className="flex flex-wrap items-center justify-center gap-2 typo-meta">
             <span className="font-medium text-rose-200/80 mr-1">Accepted Payments:</span>
 
             {/* UPI */}
-            <span className="inline-flex items-center gap-1.5 bg-[#2C0710] border border-[#5B112B] px-2.5 py-1 rounded-md text-white font-mono font-semibold">
+            <span className="inline-flex items-center gap-1.5 bg-[#2C0710] border border-[#5B112B] px-2.5 py-1 rounded-md text-white font-semibold">
               <span className="w-2 h-2 rounded-xs bg-emerald-400" aria-hidden="true" />
               UPI
             </span>
 
             {/* RuPay */}
-            <span className="inline-flex items-center gap-1.5 bg-[#2C0710] border border-[#5B112B] px-2.5 py-1 rounded-md text-white font-mono font-semibold">
+            <span className="inline-flex items-center gap-1.5 bg-[#2C0710] border border-[#5B112B] px-2.5 py-1 rounded-md text-white font-semibold">
               <span className="w-2 h-2 rounded-xs bg-amber-400" aria-hidden="true" />
               RuPay
             </span>
@@ -554,7 +567,7 @@ export const Footer: React.FC = () => {
             </span>
 
             {/* Mastercard */}
-            <span className="inline-flex items-center gap-1.5 bg-[#2C0710] border border-[#5B112B] px-2.5 py-1 rounded-md text-white font-sans font-semibold">
+            <span className="inline-flex items-center gap-1.5 bg-[#2C0710] border border-[#5B112B] px-2.5 py-1 rounded-md text-white font-semibold">
               <span className="inline-flex -space-x-1" aria-hidden="true">
                 <span className="w-2.5 h-2.5 rounded-full bg-red-500/90" />
                 <span className="w-2.5 h-2.5 rounded-full bg-amber-400/90" />
@@ -563,12 +576,12 @@ export const Footer: React.FC = () => {
             </span>
 
             {/* NetBanking */}
-            <span className="inline-flex items-center bg-[#2C0710] border border-[#5B112B] px-2.5 py-1 rounded-md text-rose-100 font-mono">
+            <span className="inline-flex items-center bg-[#2C0710] border border-[#5B112B] px-2.5 py-1 rounded-md text-rose-100 font-medium">
               NetBanking
             </span>
 
             {/* Cash on Delivery */}
-            <span className="inline-flex items-center bg-[#2C0710] border border-[#5B112B] px-2.5 py-1 rounded-md text-[#D4AF37] font-mono font-semibold">
+            <span className="inline-flex items-center bg-[#2C0710] border border-[#5B112B] px-2.5 py-1 rounded-md text-[#D4AF37] font-semibold">
               COD
             </span>
           </div>

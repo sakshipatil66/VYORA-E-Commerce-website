@@ -87,26 +87,26 @@ export const CustomerReviews: React.FC = () => {
   const { openProductDetail } = useStore();
 
   return (
-    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
+    <section className="vyora-container vyora-section">
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.2 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="text-center max-w-2xl mx-auto mb-12"
+        className="text-center max-w-2xl mx-auto mb-10 sm:mb-12"
       >
-        <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-[0.22em] text-[#7A1438]">
+        <p className="typo-eyebrow text-[#7A1438]">
           Patron Voices · 4.92 / 5.0 Average Rating
         </p>
-        <h2 className="font-serif text-2xl sm:text-4xl font-bold text-neutral-900 mt-1.5">
+        <h2 className="typo-h2 text-neutral-900 mt-1.5">
           Cherished Across All Twelve Pavilions
         </h2>
-        <p className="text-xs sm:text-sm text-neutral-600 mt-2">
+        <p className="typo-body text-neutral-600 mt-2">
           Verified reflections from over 48,000 patrons across 180 Indian cities experiencing VYORA’s multi-category marketplace.
         </p>
       </motion.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
         {REVIEWS.map((review, idx) => (
           <motion.article
             key={review.id}
@@ -114,11 +114,11 @@ export const CustomerReviews: React.FC = () => {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.12 }}
             transition={{ duration: 0.45, delay: (idx % 3) * 0.06, ease: [0.22, 1, 0.36, 1] }}
-            className="p-6 bg-white rounded-2xl border border-[#E8DDD3] hover:border-[#D4AF37]/60 shadow-2xs hover:shadow-lg flex flex-col justify-between relative transition-all duration-300"
+            className="p-5 sm:p-6 bg-white rounded-2xl border border-[#E8DDD3] hover:border-[#D4AF37]/60 shadow-2xs hover:shadow-lg flex flex-col justify-between relative transition-all duration-300"
           >
             <Quote className="w-8 h-8 text-[#5B112B]/10 absolute top-5 right-5 pointer-events-none" />
 
-            <div className="space-y-3.5">
+            <div className="space-y-3">
               {/* Rating & Verified Mark */}
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-0.5">
@@ -126,19 +126,19 @@ export const CustomerReviews: React.FC = () => {
                     <Star key={i} className="w-3.5 h-3.5 fill-[#D4AF37] text-[#D4AF37]" />
                   ))}
                 </div>
-                <div className="flex items-center gap-1 text-[11px] text-emerald-800 font-medium">
+                <div className="flex items-center gap-1 typo-meta text-emerald-800 font-semibold">
                   <ShieldCheck className="w-3.5 h-3.5" />
                   <span>Verified Patron</span>
                 </div>
               </div>
 
               {/* Department Kicker */}
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8C6D58]">
+              <p className="typo-label text-[#8C6D58]">
                 {review.department}
               </p>
 
               {/* Testimonial Quote */}
-              <p className="text-xs sm:text-sm text-neutral-700 leading-relaxed">
+              <p className="typo-body text-neutral-700">
                 “{review.quote}”
               </p>
             </div>
@@ -146,18 +146,18 @@ export const CustomerReviews: React.FC = () => {
             {/* Patron Attribution & Linked Product */}
             <div className="pt-4 mt-5 border-t border-[#F3ECE7] flex items-end justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-xs font-semibold text-neutral-900">
+                <p className="typo-body-sm font-semibold text-neutral-900">
                   {review.name}{' '}
                   <span className="font-normal text-neutral-500">· {review.city}</span>
                 </p>
                 <button
                   onClick={() => openProductDetail(review.productId)}
-                  className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-[#7A1438] hover:text-[#380811] transition-colors truncate max-w-full cursor-pointer"
+                  className="mt-1 inline-flex items-center gap-1 typo-meta font-semibold text-[#7A1438] hover:text-[#380811] transition-colors truncate max-w-full cursor-pointer"
                 >
                   <span className="truncate underline underline-offset-2">
                     {review.itemPurchased}
                   </span>
-                  <ArrowUpRight className="w-3 h-3 shrink-0" />
+                  <ArrowUpRight className="w-3.5 h-3.5 shrink-0" />
                 </button>
               </div>
             </div>

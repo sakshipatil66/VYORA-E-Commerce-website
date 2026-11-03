@@ -77,32 +77,32 @@ export const FeaturedCollections: React.FC = () => {
   };
 
   return (
-    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+    <section className="vyora-container vyora-section">
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.2 }}
         transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10"
+        className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8 sm:mb-10"
       >
         <div>
-          <div className="flex items-center gap-2 text-[11px] sm:text-xs font-semibold uppercase tracking-[0.22em] text-[#7A1438]">
-            <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+          <div className="flex flex-wrap items-center gap-2 typo-eyebrow text-[#7A1438]">
+            <Sparkles className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
             <span>Signature Lookbooks</span>
             <span aria-hidden="true">·</span>
             <span>Multi-Category Worlds</span>
           </div>
-          <h2 className="font-serif text-2xl sm:text-4xl font-bold text-neutral-900 mt-1.5">
+          <h2 className="typo-h2 text-neutral-900 mt-1.5">
             Featured Marketplace Collections
           </h2>
         </div>
 
         <button
           onClick={() => handleOpenWorld('all')}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#5B112B] hover:text-[#380811] group cursor-pointer"
+          className="inline-flex items-center gap-1.5 typo-btn text-[#5B112B] hover:text-[#380811] group cursor-pointer self-start sm:self-auto"
         >
           <span className="underline underline-offset-4">Explore All Collections</span>
-          <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-1" />
+          <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
         </button>
       </motion.div>
 
@@ -127,18 +127,18 @@ export const FeaturedCollections: React.FC = () => {
             <div className="absolute inset-0 bg-gradient-to-t from-[#1E040A]/92 via-[#1E040A]/45 to-transparent" />
             <div className="absolute inset-3 rounded-xl border border-[#D4AF37]/0 group-hover:border-[#D4AF37]/40 transition-colors duration-300 pointer-events-none" />
 
-            <div className="relative z-10 p-6 sm:p-8 max-w-2xl space-y-2">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#D4AF37]">
+            <div className="relative z-10 p-5 sm:p-8 max-w-2xl space-y-2">
+              <p className="typo-eyebrow text-[#D4AF37]">
                 {world.eyebrow}
               </p>
-              <h3 className="font-serif text-xl sm:text-2xl lg:text-3xl font-bold text-white leading-tight">
+              <h3 className="typo-h3 text-white">
                 {world.title}
               </h3>
-              <p className="text-xs sm:text-sm text-rose-100/85 leading-relaxed line-clamp-2 max-w-xl">
+              <p className="typo-body text-rose-100/85 line-clamp-2 max-w-xl">
                 {world.description}
               </p>
               <div className="pt-2">
-                <span className="inline-flex items-center gap-2 py-2 px-4 rounded-full bg-white/95 group-hover:bg-[#D4AF37] text-[#2A070F] text-xs font-semibold transition-colors shadow-xs">
+                <span className="inline-flex items-center gap-2 min-h-10 py-2 px-4 rounded-full bg-white/95 group-hover:bg-[#D4AF37] text-[#2A070F] typo-btn-sm transition-colors shadow-xs">
                   <span>{world.cta}</span>
                   <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
                 </span>

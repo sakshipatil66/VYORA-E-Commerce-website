@@ -119,7 +119,7 @@ export const HeroCarousel: React.FC = () => {
       className="relative overflow-hidden bg-[#22050B]"
     >
       {/* Main Hero Canvas */}
-      <div className="relative min-h-[540px] sm:min-h-[600px] lg:min-h-[640px] flex items-center">
+      <div className="relative min-h-[480px] sm:min-h-[560px] lg:min-h-[630px] flex items-center">
         {/* Crossfading Background Photography */}
         <AnimatePresence mode="sync">
           <motion.div
@@ -142,7 +142,7 @@ export const HeroCarousel: React.FC = () => {
         </AnimatePresence>
 
         {/* Editorial Foreground Copy */}
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24 w-full">
+        <div className="relative z-10 vyora-container py-12 sm:py-16 lg:py-22 w-full">
           <AnimatePresence mode="wait">
             <motion.div
               key={slide.id}
@@ -150,10 +150,10 @@ export const HeroCarousel: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
               transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-              className="max-w-2xl space-y-5"
+              className="max-w-2xl space-y-4 sm:space-y-5"
             >
               {/* Unboxed Editorial Kicker */}
-              <div className="flex items-center gap-2.5 text-[11px] sm:text-xs font-semibold uppercase tracking-[0.2em] text-[#D4AF37]">
+              <div className="flex flex-wrap items-center gap-2 typo-eyebrow text-[#D4AF37]">
                 <Sparkles className="w-3.5 h-3.5 shrink-0" />
                 <span>{slide.kicker}</span>
                 <span aria-hidden="true" className="text-rose-200/50">
@@ -163,7 +163,7 @@ export const HeroCarousel: React.FC = () => {
               </div>
 
               {/* Serif Display Headline */}
-              <h1 className="font-serif text-3xl sm:text-5xl lg:text-[3.5rem] font-bold text-white tracking-tight leading-[1.08] text-balance">
+              <h1 className="typo-hero text-white">
                 {slide.title}
               </h1>
 
@@ -171,22 +171,22 @@ export const HeroCarousel: React.FC = () => {
               <div className="w-16 h-[1.5px] bg-gradient-to-r from-[#D4AF37] to-transparent" />
 
               {/* Subtitle */}
-              <p className="text-sm sm:text-base text-rose-100/85 leading-relaxed max-w-xl font-light">
+              <p className="typo-subtitle text-rose-100/90 max-w-xl">
                 {slide.subtitle}
               </p>
 
               {/* Dual Functional CTAs */}
-              <div className="pt-2 flex flex-wrap items-center gap-3.5">
+              <div className="pt-2 flex flex-wrap items-center gap-3">
                 <button
                   onClick={() => handleCta(slide.category)}
-                  className="py-3.5 px-7 text-xs sm:text-sm font-semibold text-[#2A070F] bg-[#FAF7F5] hover:bg-[#D4AF37] hover:text-neutral-950 rounded-full transition-all duration-300 shadow-lg flex items-center gap-2 transform hover:-translate-y-0.5 cursor-pointer"
+                  className="min-h-11 py-3 px-6 sm:px-7 typo-btn text-[#2A070F] bg-[#FAF7F5] hover:bg-[#D4AF37] hover:text-neutral-950 rounded-full transition-all duration-300 shadow-lg flex items-center gap-2 transform hover:-translate-y-0.5 cursor-pointer"
                 >
                   <span>{slide.ctaText}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => handleCta(slide.secondaryCategory)}
-                  className="py-3.5 px-6 text-xs sm:text-sm font-semibold text-white bg-white/10 hover:bg-white/20 border border-white/30 rounded-full transition-all duration-300 backdrop-blur-xs cursor-pointer"
+                  className="min-h-11 py-3 px-6 typo-btn text-white bg-white/10 hover:bg-white/20 border border-white/30 rounded-full transition-all duration-300 backdrop-blur-xs cursor-pointer"
                 >
                   {slide.secondaryCta}
                 </button>
@@ -195,7 +195,7 @@ export const HeroCarousel: React.FC = () => {
           </AnimatePresence>
 
           {/* Bottom Interactive Slide Progress Indicators */}
-          <div className="mt-12 sm:mt-14 flex items-center justify-between gap-4">
+          <div className="mt-10 sm:mt-14 flex items-center justify-between gap-4">
             <div className="flex items-center gap-2.5" role="tablist" aria-label="Hero campaign slides">
               {SLIDES.map((s, idx) => {
                 const active = idx === current;
@@ -206,7 +206,7 @@ export const HeroCarousel: React.FC = () => {
                     aria-selected={active}
                     aria-label={`Slide ${idx + 1}: ${s.kicker}`}
                     onClick={() => setCurrent(idx)}
-                    className={`h-1.5 rounded-full transition-all duration-500 cursor-pointer ${
+                    className={`h-2 rounded-full transition-all duration-500 cursor-pointer ${
                       active
                         ? 'w-10 bg-[#D4AF37]'
                         : 'w-2.5 bg-white/35 hover:bg-white/65'
@@ -220,19 +220,19 @@ export const HeroCarousel: React.FC = () => {
               <button
                 onClick={() => setCurrent((prev) => (prev - 1 + SLIDES.length) % SLIDES.length)}
                 aria-label="Previous campaign slide"
-                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-black/35 hover:bg-black/60 text-white flex items-center justify-center border border-white/20 hover:border-[#D4AF37]/60 transition-colors cursor-pointer"
+                className="w-10 h-10 rounded-full bg-black/35 hover:bg-black/60 text-white flex items-center justify-center border border-white/20 hover:border-[#D4AF37]/60 transition-colors cursor-pointer"
               >
-                <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+                <ChevronLeft className="w-5 h-5" />
               </button>
-              <span className="px-3 py-1 bg-black/35 backdrop-blur-xs rounded-full border border-white/15 text-[11px] text-rose-100 font-mono tabular-nums">
+              <span className="px-3 py-1 bg-black/35 backdrop-blur-xs rounded-full border border-white/15 typo-meta text-rose-100 typo-tabular">
                 0{current + 1} / 0{SLIDES.length}
               </span>
               <button
                 onClick={() => setCurrent((prev) => (prev + 1) % SLIDES.length)}
                 aria-label="Next campaign slide"
-                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-black/35 hover:bg-black/60 text-white flex items-center justify-center border border-white/20 hover:border-[#D4AF37]/60 transition-colors cursor-pointer"
+                className="w-10 h-10 rounded-full bg-black/35 hover:bg-black/60 text-white flex items-center justify-center border border-white/20 hover:border-[#D4AF37]/60 transition-colors cursor-pointer"
               >
-                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                <ChevronRight className="w-5 h-5" />
               </button>
             </div>
           </div>
@@ -241,7 +241,7 @@ export const HeroCarousel: React.FC = () => {
 
       {/* 4-Column Marketplace Provenance Strip */}
       <div className="bg-[#180308] border-t border-[#4A0E17]/80 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 grid grid-cols-2 lg:grid-cols-4 gap-4 text-xs tabular-nums">
+        <div className="vyora-container py-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 typo-body-sm typo-tabular">
           <div className="flex items-center gap-2.5">
             <CheckCircle2 className="w-4 h-4 text-[#D4AF37] shrink-0" />
             <span className="text-rose-100/80">
