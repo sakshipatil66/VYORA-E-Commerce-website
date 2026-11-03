@@ -1,0 +1,6 @@
+{
+  "name": "VYORA — Modern Indian Marketplace",
+  "description": "Premium multi-category Indian e-commerce marketplace featuring designer fashion, fine jewellery, beauty, home decor, electronics, and lifestyle.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
