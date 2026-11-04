@@ -21,3 +21,9 @@ Run `npm run lint` and `npm run build` to validate the frontend and TypeScript s
 Online payments create an order only after the server verifies the Razorpay signature and confirms the payment is captured. Failed or unverified payments are not marked as paid.
 
 Order records, payment state, and fulfillment status are stored in SQLite. Customers can refresh their order list and individual order progress from the server. Admin accounts (configured through `ADMIN_EMAIL`) can view orders and update fulfillment status. Courier-location tracking and transactional email are not integrated; the order timeline shows only store-managed status, and no email is sent.
+
+## Netlify deployment
+
+Netlify serves the Vite frontend and forwards `/api/*` through the `netlify/functions/api.mjs` proxy. The Express API must also be deployed as a separate Node.js service with persistent storage for `data/vyora.sqlite`. Configure the Netlify environment variable `VYORA_API_URL` to that service's HTTPS origin (without an `/api` path); the proxy forwards API requests and session cookies to it. Do not put backend credentials in `VITE_*` variables. If `VYORA_API_URL` is unset, the function returns an explicit configuration error instead of a misleading 404.
+
+The Express service listens on `0.0.0.0` and uses the hosting platform's `PORT` value, falling back to `API_PORT` or `3001` for local development. For Render, use Node.js 22.5 or newer because the API depends on the built-in `node:sqlite` module. Attach a persistent Render disk and set `DATABASE_PATH` to a file on that disk if database records must survive service restarts or redeployments; the default filesystem may be ephemeral.

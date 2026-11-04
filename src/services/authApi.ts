@@ -9,14 +9,7 @@ export interface StoredCartRow {
 }
 
 export interface AuthenticatedAccountPayload {
-  authenticated: true;
   user: User;
-  wishlist: string[];
-  cart: StoredCartRow[];
-  savedForLater: StoredCartRow[];
-  orders: Order[];
-  adminOrders?: Order[];
-  sessionToken?: string;
 }
 
 export interface UnauthenticatedSessionPayload {
@@ -24,9 +17,7 @@ export interface UnauthenticatedSessionPayload {
   user: null;
 }
 
-export type SessionCheckResponse =
-  | AuthenticatedAccountPayload
-  | UnauthenticatedSessionPayload;
+export type SessionCheckResponse = AuthenticatedAccountPayload;
 
 // Kept strictly in volatile JavaScript runtime memory (NEVER written to localStorage or sessionStorage).
 // Primary session persistence uses HttpOnly cookies set by /server.ts; this in-memory token acts
@@ -82,30 +73,30 @@ export async function registerCustomer(payload: {
   guestCart?: StoredCartRow[];
   guestSavedForLater?: StoredCartRow[];
 }): Promise<AuthenticatedAccountPayload> {
-  const res = await apiRequest<AuthenticatedAccountPayload>('/api/auth/register', {
+  return apiRequest<AuthenticatedAccountPayload>('/api/auth/signup', {
     method: 'POST',
-    body: JSON.stringify(payload)
+    body: JSON.stringify({
+      name: payload.name,
+      email: payload.email,
+      phone: payload.phone,
+      password: payload.password
+    })
   });
-  if (res.sessionToken) {
-    volatileMemorySessionToken = res.sessionToken;
-  }
-  return res;
 }
 
 export async function loginCustomer(payload: {
-  email: string;
+  identity: string;
   password: string;
   guestCart?: StoredCartRow[];
   guestSavedForLater?: StoredCartRow[];
 }): Promise<AuthenticatedAccountPayload> {
-  const res = await apiRequest<AuthenticatedAccountPayload>('/api/auth/login', {
+  return apiRequest<AuthenticatedAccountPayload>('/api/auth/login', {
     method: 'POST',
-    body: JSON.stringify(payload)
+    body: JSON.stringify({
+      identity: payload.identity,
+      password: payload.password
+    })
   });
-  if (res.sessionToken) {
-    volatileMemorySessionToken = res.sessionToken;
-  }
-  return res;
 }
 
 export async function logoutCustomer(): Promise<void> {
