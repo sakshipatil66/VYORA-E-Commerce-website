@@ -4,14 +4,10 @@ const jsonResponse = (status, error) =>
     headers: { 'Content-Type': 'application/json' }
   });
 
+const DEFAULT_API_URL = 'https://vyora-api-b2xc.onrender.com';
+
 export default async (request) => {
-  const configuredApiUrl = process.env.VYORA_API_URL?.trim();
-  if (!configuredApiUrl) {
-    return jsonResponse(
-      503,
-      'The VYORA API is not configured for this deployment. Set VYORA_API_URL to the deployed Express API origin.'
-    );
-  }
+  const configuredApiUrl = (process.env.VYORA_API_URL || DEFAULT_API_URL).trim();
 
   let apiOrigin;
   try {
