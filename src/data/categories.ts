@@ -1,4 +1,4 @@
-import { CategoryId, Product } from '../types';
+import { CategoryId, Product, StoreCategory } from '../types';
 import heroRoyalCouture from '../assets/images/hero_royal_couture_1793694603599.jpg';
 import heroPolkiJewels from '../assets/images/hero_polki_jewels_1793694605573.jpg';
 import heroBrassLiving from '../assets/images/hero_brass_living_1793694607275.jpg';
@@ -22,7 +22,7 @@ export interface CategoryMeta {
   keywords: string[];
 }
 
-export const CATEGORY_METADATA: Record<CategoryId, CategoryMeta> = {
+export const CATEGORY_METADATA: Partial<Record<CategoryId, CategoryMeta>> = {
   all: {
     id: 'all',
     label: 'All Marketplace Collections',
@@ -324,19 +324,34 @@ export const CATEGORY_METADATA: Record<CategoryId, CategoryMeta> = {
   }
 };
 
+export function resolveCategoryMeta(id: CategoryId, categories: StoreCategory[] = []): CategoryMeta {
+  const saved = categories.find((category) => category.id === id);
+  const fallback = CATEGORY_METADATA[id];
+  return {
+    id,
+    label: saved?.label || fallback?.label || id,
+    shortLabel: saved?.label || fallback?.shortLabel || id,
+    eyebrow: fallback?.eyebrow || 'VYORA curated collection',
+    description: saved?.description || fallback?.description || '',
+    bannerImage: saved?.image || fallback?.bannerImage || '',
+    assuranceBadge: fallback?.assuranceBadge || 'Considered quality, always',
+    keywords: fallback?.keywords || [id]
+  };
+}
+
 export const ORDERED_CATEGORIES: CategoryMeta[] = [
-  CATEGORY_METADATA.fashion,
-  CATEGORY_METADATA.jewellery,
-  CATEGORY_METADATA.beauty,
-  CATEGORY_METADATA.electronics,
-  CATEGORY_METADATA.home,
-  CATEGORY_METADATA.footwear,
-  CATEGORY_METADATA.bags,
-  CATEGORY_METADATA.toys,
-  CATEGORY_METADATA.stationery,
-  CATEGORY_METADATA.fitness,
-  CATEGORY_METADATA.essentials,
-  CATEGORY_METADATA.gifting
+  CATEGORY_METADATA.fashion!,
+  CATEGORY_METADATA.jewellery!,
+  CATEGORY_METADATA.beauty!,
+  CATEGORY_METADATA.electronics!,
+  CATEGORY_METADATA.home!,
+  CATEGORY_METADATA.footwear!,
+  CATEGORY_METADATA.bags!,
+  CATEGORY_METADATA.toys!,
+  CATEGORY_METADATA.stationery!,
+  CATEGORY_METADATA.fitness!,
+  CATEGORY_METADATA.essentials!,
+  CATEGORY_METADATA.gifting!
 ];
 
 export function isWomensFashionProduct(product: Product): boolean {
@@ -367,7 +382,7 @@ const normalizeSearchText = (value: string) =>
   value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
     .replace(/[^a-z0-9]+/g, ' ').trim();
 
-const CATEGORY_UMBRELLA_TERMS: Record<CategoryId, string[]> = {
+const CATEGORY_UMBRELLA_TERMS: Partial<Record<CategoryId, string[]>> = {
   all: ['all', 'marketplace'],
   fashion: ['fashion', 'couture', 'clothing', 'apparel', 'ethnic', 'garment', 'wear'],
   jewellery: ['jewellery', 'jewelry', 'ornament', 'ornaments', 'jewels', 'jewel'],

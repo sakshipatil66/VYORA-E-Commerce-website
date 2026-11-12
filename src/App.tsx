@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { StoreProvider, useStore } from './context/StoreContext';
 import { AnnouncementBar } from './components/common/AnnouncementBar';
@@ -40,8 +40,9 @@ import { PolicyPage } from './components/info/PolicyPage';
 
 import { Sparkles, X, Gift, Tag, MapPin, Truck, ArrowRight } from 'lucide-react';
 import { CategoryId, Product } from './types';
-import { CATEGORY_METADATA, ORDERED_CATEGORIES } from './data/categories';
+import { resolveCategoryMeta } from './data/categories';
 import { formatEstimatedDate, formatLocationLabel } from './data/locations';
+import { StoreCategory } from './types';
 
 type TrendingTabId = 'all' | 'fashion' | 'jewellery' | 'beauty' | 'electronics' | 'lifestyle';
 
@@ -69,11 +70,12 @@ type CategoryCarouselTab = 'all' | 'bestsellers' | 'new';
 const CategoryProductSlidesBlock: React.FC<{
   categoryId: CategoryId;
   products: Product[];
+  categories: StoreCategory[];
   index: number;
   onViewAll: (catId: CategoryId) => void;
-}> = ({ categoryId, products, index, onViewAll }) => {
+}> = ({ categoryId, products, categories, index, onViewAll }) => {
   const [subTab, setSubTab] = useState<CategoryCarouselTab>('all');
-  const meta = CATEGORY_METADATA[categoryId];
+  const meta = resolveCategoryMeta(categoryId, categories);
 
   // Strictly scoped to this single category — never mixes unrelated products!
   const categoryItems = useMemo(
@@ -152,6 +154,7 @@ const CategoryProductSlidesBlock: React.FC<{
 const HomePageContent: React.FC = () => {
   const {
     products,
+    categories,
     setActivePage,
     openCategoryPage,
     recentlyViewedIds,
@@ -375,11 +378,12 @@ const HomePageContent: React.FC = () => {
         </div>
 
         <div className="space-y-8">
-          {ORDERED_CATEGORIES.map((cat, idx) => (
+          {categories.map((cat, idx) => (
             <CategoryProductSlidesBlock
               key={cat.id}
               categoryId={cat.id}
               products={products}
+              categories={categories}
               index={idx}
               onViewAll={navigateToCategory}
             />
@@ -500,6 +504,7 @@ const MainLayout: React.FC = () => {
     toasts,
     removeToast,
     currentUser,
+    isAuthLoading,
     setAuthReturnPage,
     setActivePage,
     setIsAuthModalOpen,
@@ -507,20 +512,51 @@ const MainLayout: React.FC = () => {
   } = useStore();
   const protectedPages = ['checkout', 'order_confirmation', 'order_tracking', 'my_orders', 'wishlist', 'profile', 'admin'];
   const needsAuthentication = protectedPages.includes(activePage);
+  const isAdminPage = activePage === 'admin';
+  const routeInitialized = useRef(false);
 
   useEffect(() => {
-    if (needsAuthentication && !currentUser) {
+    const handlePopState = () => {
+      setActivePage(window.location.pathname.replace(/\/+$/, '') === '/admin' ? 'admin' : 'home');
+    };
+    window.addEventListener('popstate', handlePopState);
+    const isAdminPath = window.location.pathname.replace(/\/+$/, '') === '/admin';
+    if (!routeInitialized.current) {
+      routeInitialized.current = true;
+      if (isAdminPath) {
+        if (!isAdminPage) setActivePage('admin');
+        return () => window.removeEventListener('popstate', handlePopState);
+      }
+    }
+    if (isAdminPage && !isAdminPath) {
+      window.history.pushState({}, '', '/admin');
+    } else if (!isAdminPage && isAdminPath) {
+      window.history.replaceState({}, '', '/');
+    }
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isAdminPage, setActivePage]);
+
+  useEffect(() => {
+    if (needsAuthentication && !currentUser && !isAuthLoading) {
       setAuthReturnPage(activePage);
       setActivePage('login');
       setIsAuthModalOpen(true);
-    } else if (activePage === 'admin' && currentUser?.role !== 'admin') {
+    } else if (activePage === 'admin' && !isAuthLoading && currentUser?.role !== 'admin') {
       setActivePage('home');
       addToast('Administrator access is required', 'warning');
     }
-  }, [activePage, currentUser, needsAuthentication, setAuthReturnPage, setActivePage, setIsAuthModalOpen, addToast]);
+  }, [activePage, currentUser, isAuthLoading, needsAuthentication, setAuthReturnPage, setActivePage, setIsAuthModalOpen, addToast]);
 
   const renderCurrentPage = () => {
     if (needsAuthentication && !currentUser) {
+      if (isAuthLoading) {
+        return (
+          <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#7A1438] border-t-transparent" />
+            <p className="text-sm text-neutral-500">Verifying your VYORA session…</p>
+          </div>
+        );
+      }
       return (
         <div className="mx-auto max-w-xl px-4 py-24 text-center">
           <h1 className="font-serif text-2xl font-bold text-[#4A0E17]">Sign in to continue</h1>
@@ -602,25 +638,26 @@ const MainLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#FAF7F5] text-neutral-900">
-      {/* Slim Dismissible Privilege Bar */}
-      <AnnouncementBar />
-
-      {/* Sticky 3-Zone Header */}
-      <Header />
+    <div className={`min-h-screen flex flex-col text-neutral-900 ${isAdminPage ? 'bg-[#f8f4ef]' : 'bg-[#FAF7F5]'}`}>
+      {!isAdminPage && <AnnouncementBar />}
+      {!isAdminPage && <Header />}
 
       {/* Main Dynamic Viewport */}
       <main className="flex-1">{renderCurrentPage()}</main>
 
       {/* Luxury Multi-Column Footer */}
-      <Footer />
+      {!isAdminPage && <Footer />}
 
       {/* Global Interactive Overlays */}
-      <SearchModal />
-      <CartDrawer />
-      <AuthModal />
-      <QuickViewModal />
-      <CompareDrawer />
+      {!isAdminPage && (
+        <>
+          <SearchModal />
+          <CartDrawer />
+          <AuthModal />
+          <QuickViewModal />
+          <CompareDrawer />
+        </>
+      )}
 
       {/* Toast Notification Stack */}
       <div className="fixed bottom-5 right-5 z-50 flex flex-col gap-2 max-w-sm pointer-events-none">

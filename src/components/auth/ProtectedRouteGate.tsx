@@ -17,18 +17,13 @@ export const ProtectedRouteGate: React.FC<ProtectedRouteGateProps> = ({
   requireAdmin = false,
   children
 }) => {
-  const { currentUser, isAuthLoading, openAuthModal, setActivePage } = useStore();
+  const { currentUser, setActivePage, setAuthReturnPage, setIsAuthModalOpen } = useStore();
 
-  if (isAuthLoading) {
-    return (
-      <div className="max-w-xl mx-auto px-4 py-24 flex flex-col items-center justify-center text-center space-y-3">
-        <div className="w-8 h-8 rounded-full border-2 border-[#7A1438] border-t-transparent animate-spin" />
-        <p className="typo-body-sm font-medium text-neutral-500">
-          Verifying your authenticated session...
-        </p>
-      </div>
-    );
-  }
+  const requestSignIn = () => {
+    setAuthReturnPage(targetPage);
+    setActivePage('login');
+    setIsAuthModalOpen(true);
+  };
 
   if (!currentUser) {
     return (
@@ -50,7 +45,7 @@ export const ProtectedRouteGate: React.FC<ProtectedRouteGateProps> = ({
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-1">
               <button
                 type="button"
-                onClick={() => openAuthModal('signin', targetPage)}
+                onClick={requestSignIn}
                 className="min-h-11 w-full sm:w-auto inline-flex items-center justify-center gap-2 py-3 px-6 rounded-full bg-[#4A0E17] hover:bg-[#380811] text-white typo-btn transition-colors cursor-pointer shadow-xs"
               >
                 <LogIn className="w-4 h-4 text-[#D4AF37] shrink-0" />
@@ -59,7 +54,7 @@ export const ProtectedRouteGate: React.FC<ProtectedRouteGateProps> = ({
 
               <button
                 type="button"
-                onClick={() => openAuthModal('signup', targetPage)}
+                onClick={requestSignIn}
                 className="min-h-11 w-full sm:w-auto inline-flex items-center justify-center gap-2 py-3 px-6 rounded-full bg-[#FAF7F5] hover:bg-[#F1E8E0] text-[#4A0E17] border border-[#DFD2C5] typo-btn transition-colors cursor-pointer"
               >
                 <UserPlus className="w-4 h-4 text-[#7A1438] shrink-0" />

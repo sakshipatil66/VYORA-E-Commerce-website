@@ -21,7 +21,7 @@ import { useStore } from '../../context/StoreContext';
 import { ProductCarousel } from '../common/ProductCarousel';
 import { ProductImage, getVariantProductImage } from '../common/ProductImage';
 import { Review } from '../../types';
-import { CATEGORY_METADATA } from '../../data/categories';
+import { resolveCategoryMeta } from '../../data/categories';
 import {
   SELECTABLE_INDIAN_LOCATIONS,
   LocationLookupResult,
@@ -31,6 +31,7 @@ import {
 export const ProductDetailPage: React.FC = () => {
   const {
     products,
+    categories,
     selectedProductId,
     addToCart,
     toggleWishlist,
@@ -226,7 +227,7 @@ export const ProductDetailPage: React.FC = () => {
     (p) => recentlyViewedIds.includes(p.id) && p.id !== product.id
   );
 
-  const catShortLabel = CATEGORY_METADATA[product.category]?.shortLabel || product.category;
+  const catShortLabel = resolveCategoryMeta(product.category, categories).shortLabel;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

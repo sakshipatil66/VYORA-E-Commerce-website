@@ -14,7 +14,7 @@ import {
 import { useStore } from '../../context/StoreContext';
 import { CategoryId } from '../../types';
 import { ProductCard } from '../common/ProductCard';
-import { CATEGORY_METADATA, ORDERED_CATEGORIES, searchProducts } from '../../data/categories';
+import { resolveCategoryMeta, searchProducts } from '../../data/categories';
 import { formatEstimatedDate, formatLocationLabel } from '../../data/locations';
 
 const RECOVERY_KEYWORDS = [
@@ -34,6 +34,7 @@ type PriceFilterId = 'all' | 'under2k' | '2k-5k' | '5k-15k' | 'above15k';
 export const SearchResultsPage: React.FC = () => {
   const {
     products,
+    categories,
     searchQuery,
     submitSearch,
     setActivePage,
@@ -256,7 +257,7 @@ export const SearchResultsPage: React.FC = () => {
                         : 'bg-white/10 text-rose-100 hover:bg-white/20'
                     }`}
                   >
-                    {CATEGORY_METADATA[catId]?.shortLabel || catId} ({count})
+                    {resolveCategoryMeta(catId, categories).shortLabel} ({count})
                   </button>
                 ))}
               </div>
@@ -440,7 +441,7 @@ export const SearchResultsPage: React.FC = () => {
               Or Explore Marketplace Categories
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              {ORDERED_CATEGORIES.slice(0, 6).map((cat) => (
+              {categories.slice(0, 6).map((cat) => (
                 <button
                   key={cat.id}
                   type="button"
@@ -448,9 +449,9 @@ export const SearchResultsPage: React.FC = () => {
                   className="group p-3 rounded-xl border border-[#EBE4DD] hover:border-[#7A1438] bg-[#FAF7F5] hover:bg-white text-left transition-all cursor-pointer"
                 >
                   <p className="font-serif text-sm font-bold text-neutral-900 group-hover:text-[#7A1438]">
-                    {cat.shortLabel}
+                    {cat.label}
                   </p>
-                  <p className="text-[11px] text-neutral-500 line-clamp-1 mt-0.5">{cat.eyebrow}</p>
+                  <p className="text-[11px] text-neutral-500 line-clamp-1 mt-0.5">{cat.description || cat.id}</p>
                   <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#7A1438] mt-2">
                     Shop Now <ArrowRight className="w-3 h-3" />
                   </span>

@@ -1,17 +1,11 @@
-export type CategoryId = 
-  | 'all'
-  | 'fashion'
-  | 'jewellery'
-  | 'beauty'
-  | 'electronics'
-  | 'home'
-  | 'footwear'
-  | 'bags'
-  | 'toys'
-  | 'stationery'
-  | 'fitness'
-  | 'essentials'
-  | 'gifting';
+export type CategoryId = string;
+
+export interface StoreCategory {
+  id: CategoryId;
+  label: string;
+  description: string;
+  image: string;
+}
 
 export interface ProductVariant {
   id: string;

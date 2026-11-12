@@ -19,6 +19,9 @@ const json = (body: unknown): RequestInit => ({ method: 'POST', body: JSON.strin
 export const api = {
   products: () => request<Product[]>('/products'),
   coupons: () => request<{ coupons: Coupon[] }>('/coupons'),
+  homeBanners: () => request<{ banners: HomeBanner[] }>('/content/home-banners'),
+  adminOverview: () => request<AdminOverview>('/admin/overview'),
+  saveHomeBanners: (banners: HomeBanner[]) => request<{ banners: HomeBanner[] }>('/admin/content/home-banners', { method: 'PUT', body: JSON.stringify({ banners }) }),
   me: () => request<{ user: User }>('/auth/me'),
   login: (identity: string, password: string) =>
     request<{ user: User }>('/auth/login', json({ identity, password })),
@@ -80,3 +83,14 @@ export const api = {
   addCoupon: (coupon: Coupon) =>
     request<{ coupon: Coupon }>('/admin/coupons', json(coupon))
 };
+
+export interface HomeBanner {
+  id: string; kicker: string; edition: string; title: string; subtitle: string; image: string;
+  category: string; ctaText: string; secondaryCta: string; secondaryCategory: string; active: boolean;
+}
+export interface AdminOverview {
+  stats: { revenue: number; orders: number; customers: number; products: number; lowStock: number; pending: number };
+  monthlySales: { month: string; orders: number; revenue: number }[];
+  categories: { id: string; label: string; products: number }[];
+  customers: { id: string; name: string; email: string; phone: string; tier: string; joined: string; orders: number; spend: number; lastOrder: string | null }[];
+}

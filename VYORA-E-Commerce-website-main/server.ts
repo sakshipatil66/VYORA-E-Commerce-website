@@ -9,6 +9,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { INITIAL_PRODUCTS } from './src/data/products';
 import { INITIAL_COUPONS } from './src/data/coupons';
 import { findLocationByCityOrState } from './src/data/locations';
+import { ORDERED_CATEGORIES } from './src/data/categories';
 import { Address, CartItem, Order, OrderStatus, Product, User } from './src/types';
 
 const scrypt = promisify(scryptCallback);
@@ -94,6 +95,10 @@ database.exec(`
     code TEXT PRIMARY KEY COLLATE NOCASE,
     data_json TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS cms_settings (
+    key TEXT PRIMARY KEY,
+    data_json TEXT NOT NULL
+  );
   CREATE TABLE IF NOT EXISTS cart_items (
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     item_id TEXT NOT NULL,
@@ -172,6 +177,17 @@ const initialCouponCount = database.prepare('SELECT COUNT(*) AS count FROM coupo
 if (initialCouponCount.count === 0) {
   const insertCoupon = database.prepare('INSERT INTO coupons (code, data_json) VALUES (?, ?)');
   for (const coupon of INITIAL_COUPONS) insertCoupon.run(coupon.code, JSON.stringify(coupon));
+}
+
+const defaultBanners = [
+  { id: 'slide-01', kicker: 'Couture & Handloom Pavilion', edition: '2026 Grand Edit', title: 'The Royal Opulence of Varanasi & Rajputana', subtitle: 'Pure Katan silk Banarasi sarees, hand-embroidered raw silk sherwanis, and gossamer organza lehengas woven by generational master looms.', image: '/src/assets/images/hero_royal_couture_1793694603599.jpg', category: 'fashion', ctaText: 'Explore Couture & Sarees', secondaryCta: 'Shop All 12 Departments', secondaryCategory: 'all', active: true },
+  { id: 'slide-02', kicker: 'Fine Jewellery & Bridal Vault', edition: 'Johari Bazaar Atelier', title: 'Uncut Polki, Emeralds & Temple Heirlooms', subtitle: 'Hallmarked 925 sterling silver and 22K gold vermeil heirlooms, crafted with lifetime plating assurance.', image: '/src/assets/images/hero_polki_jewels_1793694605573.jpg', category: 'jewellery', ctaText: 'Discover Fine Jewellery', secondaryCta: 'Bridal Potlis & Footwear', secondaryCategory: 'footwear', active: true },
+  { id: 'slide-03', kicker: 'Acoustic Tech & Timepieces', edition: 'Design Engineering', title: 'Warm Teak Acoustics & AMOLED Chronographs', subtitle: 'Hand-finished audio, leather-strap smartwatches, and modern essentials with an artisanal touch.', image: '/src/assets/images/hero_acoustic_tech_1793696284624.jpg', category: 'electronics', ctaText: 'Explore Electronics & Audio', secondaryCta: 'Leather Travel & Desk', secondaryCategory: 'bags', active: true },
+  { id: 'slide-04', kicker: 'Ayurveda, Parfum & Leather Craft', edition: 'Botanical Apothecary', title: 'Kashmiri Saffron Elixirs & Kannauj Oudh', subtitle: 'Botanical skincare, copper-distilled rose mists, and aged Assam oudh extraits.', image: '/src/assets/images/hero_ayurveda_atelier_1793696297589.jpg', category: 'beauty', ctaText: 'Shop Beauty & Perfumery', secondaryCta: 'Explore Gourmet Pantry', secondaryCategory: 'essentials', active: true },
+  { id: 'slide-05', kicker: 'Sanctuary Home & Gifting', edition: 'Artisanal Living', title: 'Hand-Hammered Brass & Block-Printed Linens', subtitle: 'Moradabad brass, Sanganer cotton, carved wood, and bespoke festive gift trunks.', image: '/src/assets/images/hero_brass_living_1793694607275.jpg', category: 'home', ctaText: 'Shop Home & Living', secondaryCta: 'Royal Gift Hampers', secondaryCategory: 'gifting', active: true }
+];
+if (!database.prepare('SELECT key FROM cms_settings WHERE key = ?').get('home_banners')) {
+  database.prepare('INSERT INTO cms_settings (key, data_json) VALUES (?, ?)').run('home_banners', JSON.stringify(defaultBanners));
 }
 
 app.use(express.json({ limit: '1mb' }));
@@ -418,6 +434,56 @@ app.get('/api/coupons', (_req, res) => {
   const rows = database.prepare('SELECT data_json FROM coupons').all() as { data_json: string }[];
   res.json({ coupons: rows.map((row) => JSON.parse(row.data_json)) });
 });
+
+app.get('/api/content/home-banners', (_req, res) => {
+  const row = database.prepare('SELECT data_json FROM cms_settings WHERE key = ?').get('home_banners') as { data_json: string };
+  res.json({ banners: (JSON.parse(row.data_json) as Record<string, unknown>[]).filter((banner) => banner.active !== false) });
+});
+
+app.get('/api/admin/overview', ...authenticate((req, res) => {
+  if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
+  const orders = database.prepare('SELECT data_json FROM orders ORDER BY created_at DESC').all() as { data_json: string }[];
+  const parsedOrders = orders.map(({ data_json }) => JSON.parse(data_json) as Order);
+  const products = database.prepare('SELECT category, stock FROM products').all() as { category: string; stock: number }[];
+  const customers = database.prepare("SELECT id, name, email, phone, club_tier, created_at FROM users WHERE role = 'customer' ORDER BY created_at DESC").all() as Record<string, unknown>[];
+  const customerOrders = database.prepare('SELECT user_id, data_json FROM orders').all() as { user_id: string; data_json: string }[];
+  const customerMetrics = new Map<string, { orders: number; spend: number; lastOrder: string | null }>();
+  for (const row of customerOrders) {
+    const order = JSON.parse(row.data_json) as Order;
+    const current = customerMetrics.get(row.user_id) || { orders: 0, spend: 0, lastOrder: null };
+    current.orders += 1; current.spend += order.total;
+    if (!current.lastOrder || order.date > current.lastOrder) current.lastOrder = order.date;
+    customerMetrics.set(row.user_id, current);
+  }
+  const revenue = parsedOrders.reduce((sum, order) => sum + order.total, 0);
+  const byMonth = new Map<string, { orders: number; revenue: number }>();
+  for (const order of parsedOrders) {
+    const month = new Date(order.date).toLocaleString('en-IN', { month: 'short', year: 'numeric' });
+    const entry = byMonth.get(month) || { orders: 0, revenue: 0 };
+    entry.orders += 1; entry.revenue += order.total; byMonth.set(month, entry);
+  }
+  const categoryCounts = new Map(products.map((product) => [product.category, 0]));
+  for (const product of products) categoryCounts.set(product.category, (categoryCounts.get(product.category) || 0) + 1);
+  res.json({
+    stats: { revenue, orders: parsedOrders.length, customers: customers.length, products: products.length, lowStock: products.filter((product) => product.stock < 15).length, pending: parsedOrders.filter((order) => order.status !== 'delivered').length },
+    monthlySales: [...byMonth.entries()].slice(-6).map(([month, values]) => ({ month, ...values })),
+    categories: ORDERED_CATEGORIES.map(({ id, label }) => ({ id, label, products: categoryCounts.get(id) || 0 })),
+    customers: customers.map((customer) => ({ id: String(customer.id), name: String(customer.name), email: String(customer.email).endsWith('@phone.vyora.invalid') ? '' : String(customer.email), phone: String(customer.phone || ''), tier: String(customer.club_tier || 'Silver'), joined: String(customer.created_at), ...(customerMetrics.get(String(customer.id)) || { orders: 0, spend: 0, lastOrder: null }) }))
+  });
+}));
+
+app.put('/api/admin/content/home-banners', ...authenticate((req, res) => {
+  if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
+  const banners = req.body.banners;
+  const categoryIds = ['all', ...ORDERED_CATEGORIES.map(({ id }) => id)];
+  if (!Array.isArray(banners) || banners.length > 12 || banners.some((banner) =>
+    !banner || typeof banner.id !== 'string' || typeof banner.title !== 'string' || !banner.title.trim() || banner.title.length > 140 ||
+    typeof banner.subtitle !== 'string' || banner.subtitle.length > 500 || typeof banner.image !== 'string' || banner.image.length > 2000 ||
+    !categoryIds.includes(banner.category) || !categoryIds.includes(banner.secondaryCategory) || typeof banner.active !== 'boolean'
+  )) fail(400, 'Homepage campaign details are invalid');
+  database.prepare('UPDATE cms_settings SET data_json = ? WHERE key = ?').run(JSON.stringify(banners), 'home_banners');
+  res.json({ banners });
+}));
 
 app.get('/api/payments/config', (_req, res) => {
   const { credentials, error } = getRazorpayCredentials();

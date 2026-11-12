@@ -1,742 +1,141 @@
-import React, { useState } from 'react';
-import {
-  Package,
-  ShoppingBag,
-  TrendingUp,
-  Users,
-  Plus,
-  Trash2,
-  Edit,
-  CheckCircle2,
-  AlertCircle,
-  Tag,
-  Search,
-  Filter,
-  ArrowRight,
-  ShieldCheck,
-  ChevronDown,
-  RefreshCw
-} from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Activity, ArrowDownRight, ArrowUpRight, Boxes, ChartNoAxesCombined, Check, ChevronDown, CircleDollarSign, Clock3, Download, Image as ImageIcon, LayoutDashboard, LogOut, Package, Pencil, Plus, RefreshCw, Search, ShieldCheck, ShoppingBag, Tag, Trash2, Users, X } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
-import { Product, OrderStatus, CategoryId, Coupon } from '../../types';
+import { CategoryId, OrderStatus, Product } from '../../types';
+import { AdminOverview, api, HomeBanner } from '../../lib/api';
+import { ORDERED_CATEGORIES } from '../../data/categories';
 import { ProductImage } from '../common/ProductImage';
 
+type Section = 'overview' | 'products' | 'categories' | 'orders' | 'customers' | 'inventory' | 'reports' | 'content';
+const nav: { id: Section; label: string; icon: React.ElementType }[] = [
+  { id: 'overview', label: 'Overview', icon: LayoutDashboard }, { id: 'products', label: 'Products', icon: Package },
+  { id: 'categories', label: 'Categories', icon: Boxes }, { id: 'orders', label: 'Orders', icon: ShoppingBag },
+  { id: 'customers', label: 'Customers', icon: Users }, { id: 'inventory', label: 'Inventory', icon: Activity },
+  { id: 'reports', label: 'Sales reports', icon: ChartNoAxesCombined }, { id: 'content', label: 'Homepage content', icon: ImageIcon }
+];
+const money = (value: number) => `₹${Math.round(value || 0).toLocaleString('en-IN')}`;
+const statusLabel: Record<OrderStatus, string> = { placed: 'Placed', confirmed: 'Confirmed', processing: 'Processing', packed: 'Packed', shipped: 'Shipped', out_for_delivery: 'Out for delivery', delivered: 'Delivered' };
+
 export const AdminDashboard: React.FC = () => {
-  const {
-    products,
-    addProduct,
-    updateProduct,
-    deleteProduct,
-    orders,
-    refreshOrders,
-    updateOrderStatus,
-    coupons,
-    addCoupon,
-    setActivePage,
-    addToast
-  } = useStore();
+  const { products, addProduct, updateProduct, deleteProduct, orders, refreshOrders, updateOrderStatus, currentUser, logout, addToast } = useStore();
+  const [section, setSection] = useState<Section>('overview');
+  const [overview, setOverview] = useState<AdminOverview | null>(null);
+  const [banners, setBanners] = useState<HomeBanner[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [productModal, setProductModal] = useState<Product | 'new' | null>(null);
+  const [bannerModal, setBannerModal] = useState<HomeBanner | 'new' | null>(null);
+  const [orderFilter, setOrderFilter] = useState('all');
+  const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'coupons' | 'analytics'>('products');
-  const [productSearch, setProductSearch] = useState('');
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
-
-  const handleRefreshOrders = async () => {
-    setIsRefreshingOrders(true);
+  const reload = useCallback(async () => {
+    setLoading(true);
     try {
-      await refreshOrders();
-      addToast('Order list refreshed.');
-    } catch (error) {
-      addToast(`Could not refresh orders: ${(error as Error).message}`, 'warning');
-    } finally {
-      setIsRefreshingOrders(false);
-    }
+      const [data, campaignData] = await Promise.all([api.adminOverview(), api.homeBanners()]);
+      setOverview(data); setBanners(campaignData.banners);
+    } catch (error) { addToast(`Could not load store operations: ${(error as Error).message}`, 'warning'); }
+    finally { setLoading(false); }
+  }, [addToast]);
+  useEffect(() => { void reload(); }, [reload]);
+
+  const filteredProducts = useMemo(() => products.filter((product) => {
+    const matchesQuery = `${product.name} ${product.brand} ${product.category}`.toLowerCase().includes(query.toLowerCase());
+    return matchesQuery && (categoryFilter === 'all' || product.category === categoryFilter);
+  }), [products, query, categoryFilter]);
+  const filteredOrders = useMemo(() => orders.filter((order) => {
+    const matchesQuery = `${order.id} ${order.shippingAddress.fullName} ${order.shippingAddress.phone}`.toLowerCase().includes(query.toLowerCase());
+    return matchesQuery && (orderFilter === 'all' || order.status === orderFilter);
+  }), [orders, query, orderFilter]);
+
+  const saveProduct = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); if (!productModal) return; const form = new FormData(event.currentTarget);
+    const name = String(form.get('name') || '').trim(); const category = String(form.get('category')) as CategoryId;
+    const originalPrice = Number(form.get('originalPrice')); const discountPrice = Number(form.get('discountPrice')); const stockQuantity = Number(form.get('stockQuantity'));
+    if (!name || discountPrice > originalPrice || originalPrice <= 0 || stockQuantity < 0) { addToast('Check the product name, price and stock values.', 'warning'); return; }
+    const image = String(form.get('image') || '');
+    const patch: Product = { ...(productModal === 'new' ? {} as Product : productModal), id: productModal === 'new' ? '' : productModal.id,
+      name, brand: String(form.get('brand') || 'VYORA'), category, subCategory: String(form.get('subCategory') || ''),
+      tagline: productModal === 'new' ? 'A considered VYORA original' : productModal.tagline,
+      description: productModal === 'new' ? `${name}, selected by VYORA.` : productModal.description,
+      originalPrice, discountPrice, discountPercent: Math.max(0, Math.round((originalPrice - discountPrice) / originalPrice * 100)),
+      stockQuantity, inStock: stockQuantity > 0, primaryImage: image, images: [image], rating: productModal === 'new' ? 0 : productModal.rating,
+      reviewCount: productModal === 'new' ? 0 : productModal.reviewCount, highlights: productModal === 'new' ? ['Selected for the VYORA collection'] : productModal.highlights };
+    setSaving(true);
+    if (productModal === 'new') addProduct(patch); else updateProduct(patch);
+    setSaving(false); setProductModal(null);
   };
 
-  // Add Product Form state
-  const [newName, setNewName] = useState('');
-  const [newBrand, setNewBrand] = useState('Vyora Atelier');
-  const [newCategory, setNewCategory] = useState<CategoryId>('fashion');
-  const [newSubCategory, setNewSubCategory] = useState('Festive Wear');
-  const [newOriginalPrice, setNewOriginalPrice] = useState(9999);
-  const [newDiscountPrice, setNewDiscountPrice] = useState(6999);
-  const [newStock, setNewStock] = useState(25);
-  const [newOrigin, setNewOrigin] = useState('Varanasi, Uttar Pradesh');
-  const [newFabric, setNewFabric] = useState('100% Handloom Mulberry Silk');
-  const [newImage, setNewImage] = useState('https://cdn.shopify.com/s/files/1/1224/2138/products/RoohiRS0002RedPureKatanSilkShikaargahSaree18.jpg?width=1200');
-  const [newBadge, setNewBadge] = useState('New Drop');
-
-  const [newCouponCode, setNewCouponCode] = useState('');
-  const [newCouponVal, setNewCouponVal] = useState(15);
-  const [newCouponMin, setNewCouponMin] = useState(1499);
-
-  // Calculations for Sales KPI
-  const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
-  const totalOrderCount = orders.length;
-  const lowStockCount = products.filter((p) => p.stockQuantity < 15).length;
-
-  const filteredProducts = products.filter((p) =>
-    p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-    p.brand.toLowerCase().includes(productSearch.toLowerCase()) ||
-    p.category.toLowerCase().includes(productSearch.toLowerCase())
-  );
-
-  const handleCreateProduct = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newName) return;
-    const discountPercent = Math.round(((newOriginalPrice - newDiscountPrice) / newOriginalPrice) * 100);
-    addProduct({
-      name: newName,
-      brand: newBrand,
-      category: newCategory,
-      subCategory: newSubCategory,
-      tagline: 'Authentic artisan crafted creation',
-      description: `Artisan crafted ${newName} curated by Vyora atelier.`,
-      originalPrice: Number(newOriginalPrice),
-      discountPrice: Number(newDiscountPrice),
-      discountPercent: Math.max(0, discountPercent),
-      rating: 4.9,
-      reviewCount: 1,
-      images: [newImage],
-      primaryImage: newImage,
-      badge: newBadge,
-      sizes: ['S', 'M', 'L'],
-      colors: [{ name: 'Burgundy', hex: '#5B112B' }],
-      inStock: newStock > 0,
-      stockQuantity: Number(newStock),
-      artisanOrigin: newOrigin,
-      fabricDetails: newFabric,
-      highlights: ['Authentic certified artisan craft', 'Quality inspected', 'Includes branded dust cover']
-    });
-
-    setIsAddModalOpen(false);
-    setNewName('');
+  const saveBanner = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault(); if (!bannerModal) return; const form = new FormData(event.currentTarget);
+    const item: HomeBanner = { id: bannerModal === 'new' ? `campaign-${crypto.randomUUID()}` : bannerModal.id,
+      kicker: String(form.get('kicker') || ''), edition: String(form.get('edition') || ''), title: String(form.get('title') || ''),
+      subtitle: String(form.get('subtitle') || ''), image: String(form.get('image') || ''), category: String(form.get('category')),
+      ctaText: String(form.get('ctaText') || 'Explore the collection'), secondaryCta: String(form.get('secondaryCta') || 'Shop all'),
+      secondaryCategory: String(form.get('secondaryCategory') || 'all'), active: form.get('active') === 'on' };
+    const next = bannerModal === 'new' ? [...banners, item] : banners.map((banner) => banner.id === item.id ? item : banner);
+    setSaving(true);
+    try { const saved = await api.saveHomeBanners(next); setBanners(saved.banners); setBannerModal(null); addToast('Homepage campaign saved.'); }
+    catch (error) { addToast(`Could not save campaign: ${(error as Error).message}`, 'warning'); }
+    finally { setSaving(false); }
+  };
+  const saveBanners = async (next: HomeBanner[]) => {
+    try { const result = await api.saveHomeBanners(next); setBanners(result.banners); addToast('Homepage campaign updated.'); }
+    catch (error) { addToast(`Could not update campaign: ${(error as Error).message}`, 'warning'); }
+  };
+  const refreshAll = async () => { setRefreshing(true); try { await Promise.all([reload(), refreshOrders()]); } finally { setRefreshing(false); } };
+  const exportReport = () => {
+    if (!overview) return;
+    const rows = [['Month', 'Orders', 'Sales (INR)'], ...overview.monthlySales.map((row) => [row.month, row.orders, Math.round(row.revenue)])];
+    const blob = new Blob([rows.map((row) => row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(',')).join('\n')], { type: 'text/csv' });
+    const href = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = href; link.download = 'vyora-sales-report.csv'; link.click(); URL.revokeObjectURL(href);
   };
 
-  const handleSaveEditProduct = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingProduct) return;
-    updateProduct(editingProduct);
-    setEditingProduct(null);
-  };
-
-  const handleAddCoupon = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCouponCode) return;
-    const c: Coupon = {
-      code: newCouponCode.trim().toUpperCase(),
-      description: `${newCouponVal}% promotional coupon`,
-      discountType: 'percentage',
-      discountValue: Number(newCouponVal),
-      minOrderValue: Number(newCouponMin)
-    };
-    addCoupon(c);
-    setNewCouponCode('');
-  };
-
-  return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      
-      {/* Admin Header Strip */}
-      <div className="bg-white p-6 rounded-2xl border border-[#EBE4DD] shadow-2xs mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-[#7A1438]">
-            <ShieldCheck className="w-4 h-4 text-emerald-700" />
-            <span>Store Operations Console</span>
-          </div>
-          <h1 className="font-serif text-2xl sm:text-3xl font-bold text-neutral-900 mt-0.5">
-            VYORA Marketplace Admin
-          </h1>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setActivePage('shop')}
-            className="py-2 px-4 text-xs font-medium text-neutral-700 bg-[#FAF7F5] hover:bg-[#F3ECE7] border border-[#EBE4DD] rounded-md transition-colors"
-          >
-            Preview Live Storefront
-          </button>
-          <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="py-2 px-4 text-xs font-semibold text-white bg-[#5B112B] hover:bg-[#430C1F] rounded-md transition-colors flex items-center gap-1.5 shadow-xs"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add New Creation</span>
-          </button>
-        </div>
+  const stat = overview?.stats;
+  const maxSales = Math.max(1, ...(overview?.monthlySales.map((month) => month.revenue) || [1]));
+  return <div className="min-h-[80vh] bg-[#f6f4f1] text-[#25211e]">
+    <div className="border-b border-[#e9e4de] bg-white">
+      <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-4 sm:px-7 lg:px-10">
+        <div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-[#5b112b] text-[#d4af73]"><span className="font-serif text-xl">V</span></div><div><div className="font-serif text-lg font-semibold tracking-[.18em] text-[#481022]">VYORA</div><div className="text-[10px] uppercase tracking-[.19em] text-neutral-500">Store administration</div></div></div>
+        <div className="flex items-center gap-3"><div className="hidden text-right sm:block"><div className="text-xs font-semibold">{currentUser?.name}</div><div className="text-[11px] text-neutral-500">Administrator</div></div><button onClick={refreshAll} disabled={refreshing} className="grid h-9 w-9 place-items-center rounded-lg border border-[#e9e4de] text-neutral-600 hover:bg-[#f7f4f0]" aria-label="Refresh dashboard"><RefreshCw size={15} className={refreshing ? 'animate-spin' : ''}/></button><button onClick={() => void logout()} className="flex h-9 items-center gap-2 rounded-lg border border-[#e9e4de] px-3 text-xs font-medium text-neutral-700 hover:bg-[#f7f4f0]"><LogOut size={14}/><span className="hidden sm:inline">Sign out</span></button></div>
       </div>
-
-      {/* 4 KPI Metrics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 font-mono tabular-nums">
-        <div className="p-5 bg-white rounded-xl border border-[#EBE4DD] shadow-2xs">
-          <div className="flex items-center justify-between text-neutral-500 mb-2">
-            <span className="text-xs font-sans font-semibold">Gross Sales Revenue</span>
-            <TrendingUp className="w-4 h-4 text-emerald-600" />
-          </div>
-          <p className="text-2xl font-bold text-[#4A0E17]">
-            ₹{(totalRevenue / 100000).toFixed(2)}L
-          </p>
-          <p className="text-[11px] text-emerald-700 font-sans font-medium mt-1">
-            Revenue from recorded orders
-          </p>
-        </div>
-
-        <div className="p-5 bg-white rounded-xl border border-[#EBE4DD] shadow-2xs">
-          <div className="flex items-center justify-between text-neutral-500 mb-2">
-            <span className="text-xs font-sans font-semibold">Total Consignments</span>
-            <ShoppingBag className="w-4 h-4 text-[#7A1438]" />
-          </div>
-          <p className="text-2xl font-bold text-neutral-900">
-            {totalOrderCount}
-          </p>
-          <p className="text-[11px] text-neutral-500 font-sans mt-1">
-            {orders.filter((o) => o.status !== 'delivered').length} active shipments in transit
-          </p>
-        </div>
-
-        <div className="p-5 bg-white rounded-xl border border-[#EBE4DD] shadow-2xs">
-          <div className="flex items-center justify-between text-neutral-500 mb-2">
-            <span className="text-xs font-sans font-semibold">Active Catalog SKUs</span>
-            <Package className="w-4 h-4 text-blue-600" />
-          </div>
-          <p className="text-2xl font-bold text-neutral-900">
-            {products.length}
-          </p>
-          <p className="text-[11px] text-amber-700 font-sans font-medium mt-1">
-            {lowStockCount} items below safe stock threshold
-          </p>
-        </div>
-
-        <div className="p-5 bg-white rounded-xl border border-[#EBE4DD] shadow-2xs">
-          <div className="flex items-center justify-between text-neutral-500 mb-2">
-            <span className="text-xs font-sans font-semibold">Delivered Rate</span>
-            <Users className="w-4 h-4 text-purple-600" />
-          </div>
-          <p className="text-2xl font-bold text-neutral-900">
-            {orders.length === 0
-              ? '—'
-              : `${((orders.filter((order) => order.status === 'delivered').length / orders.length) * 100).toFixed(1)}%`}
-          </p>
-          <p className="text-[11px] text-emerald-700 font-sans font-medium mt-1">
-            Delivered orders
-          </p>
-        </div>
-      </div>
-
-      {/* Tabs (Interactive Filter Controls) */}
-      <div className="flex items-center gap-2 border-b border-[#EBE4DD] mb-6">
-        <button
-          onClick={() => setActiveTab('products')}
-          className={`py-2 px-4 text-xs font-semibold border-b-2 transition-colors ${
-            activeTab === 'products'
-              ? 'border-[#7A1438] text-[#7A1438]'
-              : 'border-transparent text-neutral-500 hover:text-black'
-          }`}
-        >
-          Product Catalog & Inventory ({products.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('orders')}
-          className={`py-2 px-4 text-xs font-semibold border-b-2 transition-colors ${
-            activeTab === 'orders'
-              ? 'border-[#7A1438] text-[#7A1438]'
-              : 'border-transparent text-neutral-500 hover:text-black'
-          }`}
-        >
-          Live Orders & Status Dispatch ({orders.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('coupons')}
-          className={`py-2 px-4 text-xs font-semibold border-b-2 transition-colors ${
-            activeTab === 'coupons'
-              ? 'border-[#7A1438] text-[#7A1438]'
-              : 'border-transparent text-neutral-500 hover:text-black'
-          }`}
-        >
-          Coupons & Campaigns ({coupons.length})
-        </button>
-      </div>
-
-      {/* TAB 1: PRODUCT CATALOG & INVENTORY */}
-      {activeTab === 'products' && (
-        <div className="space-y-4">
-          {/* Search bar */}
-          <div className="flex items-center gap-3 bg-white p-3 rounded-lg border border-[#EBE4DD]">
-            <Search className="w-4 h-4 text-neutral-400" />
-            <input
-              type="text"
-              value={productSearch}
-              onChange={(e) => setProductSearch(e.target.value)}
-              placeholder="Search products by title, category, or guild artisan..."
-              className="w-full text-xs text-neutral-900 bg-transparent focus:outline-none"
-            />
-            {productSearch && (
-              <button onClick={() => setProductSearch('')} className="text-xs text-neutral-400">
-                Clear
-              </button>
-            )}
-          </div>
-
-          {/* Table */}
-          <div className="bg-white rounded-xl border border-[#EBE4DD] overflow-hidden shadow-2xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-[#FAF7F5] border-b border-[#EBE4DD] text-neutral-600 font-semibold uppercase tracking-wider text-[11px]">
-                  <tr>
-                    <th className="py-3 px-4">Creation</th>
-                    <th className="py-3 px-4">Category</th>
-                    <th className="py-3 px-4">Price (INR)</th>
-                    <th className="py-3 px-4">Inventory</th>
-                    <th className="py-3 px-4">Rating</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#F3ECE7]">
-                  {filteredProducts.map((p) => (
-                    <tr key={p.id} className="hover:bg-[#FAF7F5]/60 transition-colors">
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
-                          <ProductImage
-                            src={p.primaryImage}
-                            alt={p.name}
-                            category={p.category}
-                            compact
-                            className="w-10 h-12 object-cover rounded bg-[#FAF7F5] shrink-0"
-                          />
-                          <div>
-                            <p className="font-semibold text-neutral-900 line-clamp-1">{p.name}</p>
-                            <p className="text-[11px] text-neutral-400">{p.brand} · {p.artisanOrigin?.split(',')[0]}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 capitalize text-neutral-700">
-                        {p.category}
-                      </td>
-                      <td className="py-3 px-4 font-mono tabular-nums">
-                        <span className="font-bold text-[#4A0E17]">₹{p.discountPrice.toLocaleString('en-IN')}</span>
-                        {p.originalPrice > p.discountPrice && (
-                          <span className="text-[11px] text-neutral-400 line-through ml-1.5">
-                            ₹{p.originalPrice.toLocaleString('en-IN')}
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 font-mono tabular-nums">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => updateProduct({ ...p, stockQuantity: Math.max(0, p.stockQuantity - 1) })}
-                            className="w-5 h-5 bg-[#FAF7F5] border border-[#EBE4DD] rounded text-neutral-700 hover:bg-[#EBE4DD]"
-                          >
-                            -
-                          </button>
-                          <span className={`font-semibold ${p.stockQuantity < 15 ? 'text-amber-700' : 'text-neutral-900'}`}>
-                            {p.stockQuantity}
-                          </span>
-                          <button
-                            onClick={() => updateProduct({ ...p, stockQuantity: p.stockQuantity + 1 })}
-                            className="w-5 h-5 bg-[#FAF7F5] border border-[#EBE4DD] rounded text-neutral-700 hover:bg-[#EBE4DD]"
-                          >
-                            +
-                          </button>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 font-mono">
-                        ★ {p.rating} ({p.reviewCount})
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => setEditingProduct(p)}
-                            title="Edit"
-                            className="p-1.5 text-neutral-500 hover:text-black rounded"
-                          >
-                            <Edit className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => deleteProduct(p.id)}
-                            title="Delete"
-                            className="p-1.5 text-neutral-400 hover:text-rose-600 rounded"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 2: LIVE ORDERS MANAGEMENT */}
-      {activeTab === 'orders' && (
-        <div className="space-y-4">
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={handleRefreshOrders}
-              disabled={isRefreshingOrders}
-              className="inline-flex items-center gap-2 rounded-md border border-[#EBE4DD] bg-white px-3 py-2 text-xs font-semibold text-[#5B112B] disabled:opacity-50"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingOrders ? 'animate-spin' : ''}`} />
-              Refresh orders
-            </button>
-          </div>
-          <div className="bg-white rounded-xl border border-[#EBE4DD] overflow-hidden shadow-2xs">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-[#FAF7F5] border-b border-[#EBE4DD] text-neutral-600 font-semibold uppercase tracking-wider text-[11px]">
-                  <tr>
-                    <th className="py-3 px-4">Order ID & Date</th>
-                    <th className="py-3 px-4">Customer</th>
-                    <th className="py-3 px-4">Total (INR)</th>
-                    <th className="py-3 px-4">Payment</th>
-                    <th className="py-3 px-4">Consignment Status</th>
-                    <th className="py-3 px-4 text-right">Items & Delivery</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#F3ECE7]">
-                  {orders.map((ord) => (
-                    <tr key={ord.id} className="hover:bg-[#FAF7F5]/60 transition-colors">
-                      <td className="py-3 px-4 font-mono tabular-nums">
-                        <p className="font-bold text-[#4A0E17]">{ord.id}</p>
-                        <p className="text-[11px] text-neutral-400">{ord.date}</p>
-                      </td>
-                      <td className="py-3 px-4">
-                        <p className="font-semibold text-neutral-900">{ord.shippingAddress.fullName}</p>
-                        <p className="text-[11px] text-neutral-400">
-                          {ord.shippingAddress.city}, {ord.shippingAddress.state}, India
-                        </p>
-                        <p className="text-[11px] text-neutral-400">{ord.shippingAddress.phone}</p>
-                      </td>
-                      <td className="py-3 px-4 font-mono tabular-nums font-bold text-neutral-900">
-                        ₹{ord.total.toLocaleString('en-IN')}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="text-[11px] font-semibold text-neutral-700">
-                          {ord.paymentMethod}
-                        </span>
-                        <span className="block text-[10px] text-neutral-400">{ord.paymentStatus}</span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <select
-                          value={ord.status}
-                          onChange={(e) => updateOrderStatus(ord.id, e.target.value as OrderStatus)}
-                          className="text-xs bg-[#FAF7F5] border border-[#EBE4DD] rounded px-2 py-1 font-semibold text-[#4A0E17] focus:outline-none"
-                        >
-                          <option value="placed">Placed</option>
-                          <option value="confirmed">Confirmed</option>
-                          <option value="processing">Processing</option>
-                          <option value="packed">Packed & QC</option>
-                          <option value="shipped">Shipped</option>
-                          <option value="out_for_delivery">Out for Delivery</option>
-                          <option value="delivered">Delivered</option>
-                        </select>
-                      </td>
-                      <td className="py-3 px-4 text-right text-[11px]">
-                        <p className="text-neutral-700">{ord.items.length} item{ord.items.length === 1 ? '' : 's'}</p>
-                        <p className="text-neutral-400">Est. {ord.estimatedDeliveryDate}</p>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 3: COUPONS MANAGEMENT */}
-      {activeTab === 'coupons' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Coupon Creation Card */}
-          <div className="bg-white p-5 rounded-xl border border-[#EBE4DD] space-y-3">
-            <h3 className="font-serif text-base font-bold text-[#4A0E17]">Issue Promo Coupon</h3>
-            <form onSubmit={handleAddCoupon} className="space-y-3 text-xs">
-              <div>
-                <label className="font-semibold text-neutral-700 block mb-1">Coupon Code</label>
-                <input
-                  type="text"
-                  required
-                  value={newCouponCode}
-                  onChange={(e) => setNewCouponCode(e.target.value.toUpperCase())}
-                  placeholder="e.g. DIWALI30"
-                  className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md uppercase font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="font-semibold text-neutral-700 block mb-1">Discount %</label>
-                <input
-                  type="number"
-                  required
-                  min={5}
-                  max={70}
-                  value={newCouponVal}
-                  onChange={(e) => setNewCouponVal(Number(e.target.value))}
-                  className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md font-mono"
-                />
-              </div>
-
-              <div>
-                <label className="font-semibold text-neutral-700 block mb-1">Min Order Value (₹)</label>
-                <input
-                  type="number"
-                  required
-                  value={newCouponMin}
-                  onChange={(e) => setNewCouponMin(Number(e.target.value))}
-                  className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md font-mono"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-2.5 px-4 font-semibold text-white bg-[#5B112B] hover:bg-[#430C1F] rounded-md"
-              >
-                Create Coupon Code
-              </button>
-            </form>
-          </div>
-
-          {/* Active Coupons List */}
-          <div className="lg:col-span-2 space-y-3">
-            <h3 className="font-serif text-base font-bold text-neutral-900">Active Campaign Vouchers</h3>
-            <div className="space-y-2">
-              {coupons.map((c) => (
-                <div key={c.code} className="p-4 bg-white rounded-xl border border-[#EBE4DD] flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-sm text-[#7A1438] bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
-                        {c.code}
-                      </span>
-                      <span className="text-xs font-semibold text-neutral-800">
-                        {c.discountType === 'percentage' ? `${c.discountValue}% OFF` : `₹${c.discountValue} OFF`}
-                      </span>
-                    </div>
-                    <p className="text-xs text-neutral-500">{c.description}</p>
-                    <p className="text-[11px] text-neutral-400 font-mono">Min Order: ₹{c.minOrderValue}</p>
-                  </div>
-                  <span className="text-[10px] uppercase font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded">
-                    Active
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: ADD PRODUCT */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-xl bg-white rounded-2xl border border-[#EBE4DD] p-6 shadow-2xl max-h-[90vh] overflow-y-auto space-y-4">
-            <h3 className="font-serif text-xl font-bold text-[#4A0E17]">
-              Add New Handcrafted Creation to Catalog
-            </h3>
-            <form onSubmit={handleCreateProduct} className="space-y-3 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-neutral-700 block mb-1">Product Title *</label>
-                  <input
-                    type="text"
-                    required
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    placeholder="e.g. Kanchipuram Gold Zari Silk Saree"
-                    className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-neutral-700 block mb-1">Brand Atelier *</label>
-                  <input
-                    type="text"
-                    required
-                    value={newBrand}
-                    onChange={(e) => setNewBrand(e.target.value)}
-                    className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-neutral-700 block mb-1">Category *</label>
-                  <select
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value as CategoryId)}
-                    className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md capitalize"
-                  >
-                    <option value="fashion">Couture & Fashion</option>
-                    <option value="jewellery">Fine & Temple Jewellery</option>
-                    <option value="beauty">Ayurveda & Luxury Beauty</option>
-                    <option value="electronics">Tech & Audio Essentials</option>
-                    <option value="home">Living, Furnishings & Decor</option>
-                    <option value="footwear">Handcrafted Footwear</option>
-                    <option value="bags">Bags, Clutches & Luggage</option>
-                    <option value="toys">Toys, Crafts & Board Games</option>
-                    <option value="stationery">Journaling & Heritage Stationery</option>
-                    <option value="fitness">Yoga, Wellness & Activewear</option>
-                    <option value="essentials">Pure Gourmet & Organic Essentials</option>
-                    <option value="gifting">Festive Hampers & Gift Keepsakes</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="font-semibold text-neutral-700 block mb-1">Subcategory</label>
-                  <input
-                    type="text"
-                    value={newSubCategory}
-                    onChange={(e) => setNewSubCategory(e.target.value)}
-                    className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 font-mono">
-                <div>
-                  <label className="font-semibold text-neutral-700 block mb-1 font-sans">MRP (₹) *</label>
-                  <input
-                    type="number"
-                    required
-                    value={newOriginalPrice}
-                    onChange={(e) => setNewOriginalPrice(Number(e.target.value))}
-                    className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-neutral-700 block mb-1 font-sans">Offer Price (₹) *</label>
-                  <input
-                    type="number"
-                    required
-                    value={newDiscountPrice}
-                    onChange={(e) => setNewDiscountPrice(Number(e.target.value))}
-                    className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-neutral-700 block mb-1 font-sans">Initial Stock *</label>
-                  <input
-                    type="number"
-                    required
-                    value={newStock}
-                    onChange={(e) => setNewStock(Number(e.target.value))}
-                    className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-semibold text-neutral-700 block mb-1">Artisan Origin Guild</label>
-                  <input
-                    type="text"
-                    value={newOrigin}
-                    onChange={(e) => setNewOrigin(e.target.value)}
-                    placeholder="e.g. Kanchipuram, Tamil Nadu"
-                    className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-neutral-700 block mb-1">Editorial Stamp / Badge</label>
-                  <input
-                    type="text"
-                    value={newBadge}
-                    onChange={(e) => setNewBadge(e.target.value)}
-                    placeholder="e.g. Silk Mark Certified"
-                    className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="font-semibold text-neutral-700 block mb-1">Image URL</label>
-                <input
-                  type="text"
-                  value={newImage}
-                  onChange={(e) => setNewImage(e.target.value)}
-                  className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3">
-                <button
-                  type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="py-2 px-4 text-neutral-600 hover:text-black font-semibold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="py-2.5 px-6 font-semibold text-white bg-[#5B112B] hover:bg-[#430C1F] rounded-md transition-colors"
-                >
-                  Publish Creation
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: EDIT PRODUCT */}
-      {editingProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="w-full max-w-lg bg-white rounded-2xl border border-[#EBE4DD] p-6 shadow-2xl space-y-4">
-            <h3 className="font-serif text-xl font-bold text-[#4A0E17]">
-              Edit Creation: {editingProduct.name}
-            </h3>
-            <form onSubmit={handleSaveEditProduct} className="space-y-3 text-xs">
-              <div>
-                <label className="font-semibold text-neutral-700 block mb-1">Title</label>
-                <input
-                  type="text"
-                  value={editingProduct.name}
-                  onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
-                  className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 font-mono">
-                <div>
-                  <label className="font-semibold text-neutral-700 block mb-1 font-sans">Offer Price (₹)</label>
-                  <input
-                    type="number"
-                    value={editingProduct.discountPrice}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, discountPrice: Number(e.target.value) })}
-                    className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md"
-                  />
-                </div>
-                <div>
-                  <label className="font-semibold text-neutral-700 block mb-1 font-sans">Stock Count</label>
-                  <input
-                    type="number"
-                    value={editingProduct.stockQuantity}
-                    onChange={(e) => setEditingProduct({ ...editingProduct, stockQuantity: Number(e.target.value) })}
-                    className="w-full p-2.5 bg-[#FAF7F5] border border-[#EBE4DD] rounded-md"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3">
-                <button
-                  type="button"
-                  onClick={() => setEditingProduct(null)}
-                  className="py-2 px-4 text-neutral-600 hover:text-black font-semibold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="py-2.5 px-6 font-semibold text-white bg-[#5B112B] hover:bg-[#430C1F] rounded-md"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
-  );
+    <div className="mx-auto grid max-w-[1500px] lg:grid-cols-[230px_minmax(0,1fr)]">
+      <aside className="border-b border-[#e9e4de] bg-white p-3 lg:min-h-[calc(100vh-73px)] lg:border-b-0 lg:border-r lg:p-5"><div className="flex gap-1 overflow-x-auto lg:flex-col lg:gap-1.5">{nav.map(({ id, label, icon: Icon }) => <button key={id} onClick={() => { setSection(id); setQuery(''); }} className={`flex shrink-0 items-center gap-3 rounded-lg px-3 py-2.5 text-left text-xs font-medium transition-colors ${section === id ? 'bg-[#f5edf0] text-[#681b39]' : 'text-neutral-600 hover:bg-[#f8f6f3]'}`}><Icon size={16}/>{label}{id === 'orders' && stat?.pending ? <span className="ml-auto rounded-full bg-[#f1e7dc] px-2 py-0.5 text-[10px]">{stat.pending}</span> : null}</button>)}</div><div className="mt-8 hidden rounded-xl bg-[#f8f6f3] p-3 lg:block"><div className="flex items-center gap-2 text-xs font-semibold"><ShieldCheck size={15} className="text-emerald-700"/> Secure admin session</div><p className="mt-1 text-[11px] leading-relaxed text-neutral-500">Your store tools are protected by your VYORA administrator account.</p></div></aside>
+      <main className="min-w-0 px-4 py-6 sm:px-7 sm:py-8 lg:px-9">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-3"><div><p className="text-[10px] font-semibold uppercase tracking-[.2em] text-[#8b5d48]">VYORA / {section.replace('-', ' ')}</p><h1 className="mt-1 font-serif text-2xl font-semibold text-[#30151e] sm:text-3xl">{nav.find((item) => item.id === section)?.label}</h1></div><div className="flex gap-2">{section === 'products' && <button onClick={() => setProductModal('new')} className="flex items-center gap-2 rounded-lg bg-[#5b112b] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#461020]"><Plus size={15}/> Add product</button>}{section === 'content' && <button onClick={() => setBannerModal('new')} className="flex items-center gap-2 rounded-lg bg-[#5b112b] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#461020]"><Plus size={15}/> Add campaign</button>}{section === 'reports' && <button onClick={exportReport} className="flex items-center gap-2 rounded-lg border border-[#ded7d0] bg-white px-3 py-2.5 text-xs font-semibold"><Download size={14}/> Export CSV</button>}</div></div>
+        {loading && !overview ? <div className="rounded-xl border border-[#e9e4de] bg-white p-8 text-sm text-neutral-500">Loading live store data…</div> : <>
+          {section === 'overview' && <div className="space-y-5">
+            <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">{[
+              { label: 'Gross sales', value: money(stat?.revenue || 0), note: 'Recorded order value', icon: CircleDollarSign, accent: 'text-emerald-700' },
+              { label: 'Orders', value: stat?.orders || 0, note: `${stat?.pending || 0} awaiting delivery`, icon: ShoppingBag, accent: 'text-[#7a2843]' },
+              { label: 'Customers', value: stat?.customers || 0, note: 'Registered store accounts', icon: Users, accent: 'text-blue-700' },
+              { label: 'Catalog health', value: `${stat?.products || 0} products`, note: `${stat?.lowStock || 0} products below 15 units`, icon: Package, accent: 'text-amber-700' }
+            ].map(({ label, value, note, icon: Icon, accent }) => <div key={label} className="rounded-xl border border-[#e9e4de] bg-white p-4 sm:p-5"><div className="flex items-center justify-between text-xs text-neutral-500"><span>{label}</span><Icon size={17} className={accent}/></div><div className="mt-3 font-serif text-2xl font-semibold text-[#321720]">{value}</div><div className="mt-1 text-[11px] text-neutral-500">{note}</div></div>)}</div>
+            <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]"><div className="rounded-xl border border-[#e9e4de] bg-white p-5"><div className="flex items-center justify-between"><div><h2 className="font-serif text-lg font-semibold">Sales at a glance</h2><p className="mt-1 text-xs text-neutral-500">Monthly revenue from recorded orders</p></div><span className="rounded-full bg-[#f6f1ed] px-2.5 py-1 text-[10px] text-neutral-600">Last 6 active months</span></div><div className="mt-7 flex h-48 items-end gap-3 border-b border-[#eee9e3] pb-2 sm:gap-5">{(overview?.monthlySales || []).map((row) => <div key={row.month} className="flex h-full flex-1 flex-col items-center justify-end gap-2"><div className="w-full max-w-14 rounded-t-md bg-gradient-to-t from-[#5b112b] to-[#b67077] transition-all" style={{ height: `${Math.max(5, row.revenue / maxSales * 100)}%` }} title={`${row.month}: ${money(row.revenue)}`}/><span className="text-center text-[9px] text-neutral-500 sm:text-[10px]">{row.month.split(' ')[0]}</span></div>)}</div></div><div className="rounded-xl border border-[#e9e4de] bg-white p-5"><div className="flex items-center justify-between"><div><h2 className="font-serif text-lg font-semibold">Collection mix</h2><p className="mt-1 text-xs text-neutral-500">Live catalog by category</p></div><Tag size={17} className="text-[#8b5d48]"/></div><div className="mt-4 space-y-3">{(overview?.categories || []).filter((category) => category.products).slice(0, 6).map((category) => <button key={category.id} onClick={() => {setCategoryFilter(category.id);setSection('categories');}} className="flex w-full items-center justify-between gap-3 text-left text-xs"><span className="truncate text-neutral-700">{category.label}</span><span className="rounded-full bg-[#f6f1ed] px-2 py-1 text-[10px] font-semibold text-[#61203a]">{category.products}</span></button>)}</div></div></div>
+            <div className="grid gap-5 xl:grid-cols-2"><div className="rounded-xl border border-[#e9e4de] bg-white p-5"><div className="flex items-center justify-between"><div><h2 className="font-serif text-lg font-semibold">Recent orders</h2><p className="mt-1 text-xs text-neutral-500">Latest customer purchases</p></div><button onClick={() => setSection('orders')} className="text-xs font-semibold text-[#71223f]">View orders →</button></div><div className="mt-3 divide-y divide-[#f0ece7]">{orders.slice(0, 5).map((order) => <div key={order.id} className="flex items-center justify-between gap-3 py-3 text-xs"><div className="min-w-0"><div className="truncate font-semibold">{order.shippingAddress.fullName}</div><div className="mt-1 text-[10px] text-neutral-500">{order.id} · {new Date(order.date).toLocaleDateString('en-IN')}</div></div><div className="text-right"><div className="font-semibold">{money(order.total)}</div><div className="mt-1 text-[10px] capitalize text-neutral-500">{statusLabel[order.status]}</div></div></div>)}</div>{orders.length === 0 && <p className="py-8 text-center text-xs text-neutral-500">No orders have been recorded yet.</p>}</div><div className="rounded-xl border border-[#e9e4de] bg-white p-5"><div className="flex items-center justify-between"><div><h2 className="font-serif text-lg font-semibold">Stock watch</h2><p className="mt-1 text-xs text-neutral-500">Products with fewer than 15 units</p></div><button onClick={() => setSection('inventory')} className="text-xs font-semibold text-[#71223f]">Manage stock →</button></div><div className="mt-3 divide-y divide-[#f0ece7]">{products.filter((product) => product.stockQuantity < 15).slice(0, 5).map((product) => <div key={product.id} className="flex items-center justify-between gap-3 py-3 text-xs"><div className="min-w-0 truncate font-medium">{product.name}</div><span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ${product.stockQuantity === 0 ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-800'}`}>{product.stockQuantity} left</span></div>)}{!products.some((product) => product.stockQuantity < 15) && <p className="py-8 text-center text-xs text-neutral-500">All products are above the low stock threshold.</p>}</div></div></div>
+          </div>}
+
+          {(section === 'products' || section === 'categories' || section === 'inventory') && <div className="space-y-4">
+            {section === 'categories' && <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">{(overview?.categories || []).map((category) => <button key={category.id} onClick={() => {setCategoryFilter(categoryFilter === category.id ? 'all' : category.id);setSection('products');}} className={`rounded-xl border p-4 text-left transition-colors ${categoryFilter === category.id ? 'border-[#8f4860] bg-[#f7eff2]' : 'border-[#e9e4de] bg-white hover:border-[#c9b5b2]'}`}><div className="text-xs font-semibold">{category.label}</div><div className="mt-3 font-serif text-2xl text-[#5b112b]">{category.products}</div><div className="mt-1 text-[10px] text-neutral-500">Active products · select to manage</div></button>)}</div>}
+            <div className="flex flex-wrap gap-2 rounded-xl border border-[#e9e4de] bg-white p-3"><div className="flex min-w-[200px] flex-1 items-center gap-2 px-2"><Search size={15} className="text-neutral-400"/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search products…" className="w-full bg-transparent py-1.5 text-xs outline-none"/></div><select value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} className="rounded-lg border border-[#e9e4de] bg-white px-3 py-2 text-xs"><option value="all">All categories</option>{ORDERED_CATEGORIES.map((category) => <option key={category.id} value={category.id}>{category.shortLabel}</option>)}</select><span className="self-center px-2 text-[11px] text-neutral-500">{filteredProducts.length} products</span></div>
+            <div className="overflow-hidden rounded-xl border border-[#e9e4de] bg-white"><div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-xs"><thead className="bg-[#faf8f5] text-[10px] uppercase tracking-wider text-neutral-500"><tr><th className="px-4 py-3">Product</th><th className="px-4 py-3">Category</th><th className="px-4 py-3">Price</th><th className="px-4 py-3">On hand</th><th className="px-4 py-3 text-right">Manage</th></tr></thead><tbody className="divide-y divide-[#f0ece7]">{filteredProducts.map((product) => <tr key={product.id} className="hover:bg-[#fcfbf9]"><td className="px-4 py-3"><div className="flex items-center gap-3"><ProductImage src={product.primaryImage} alt={product.name} category={product.category} compact className="h-12 w-10 shrink-0 rounded object-cover"/><div className="max-w-[240px]"><div className="truncate font-semibold">{product.name}</div><div className="mt-1 text-[10px] text-neutral-500">{product.brand}</div></div></div></td><td className="px-4 py-3 capitalize text-neutral-600">{ORDERED_CATEGORIES.find((category) => category.id === product.category)?.shortLabel || product.category}</td><td className="px-4 py-3 font-semibold">{money(product.discountPrice)}</td><td className="px-4 py-3"><span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${product.stockQuantity < 15 ? 'bg-amber-50 text-amber-800' : 'bg-emerald-50 text-emerald-800'}`}>{product.stockQuantity}</span></td><td className="px-4 py-3"><div className="flex justify-end gap-1"><button onClick={() => setProductModal(product)} aria-label={`Edit ${product.name}`} className="rounded-md p-2 text-neutral-500 hover:bg-[#f6f1ed] hover:text-[#5b112b]"><Pencil size={14}/></button><button onClick={() => { if (window.confirm(`Remove “${product.name}” from the catalog?`)) deleteProduct(product.id); }} aria-label={`Delete ${product.name}`} className="rounded-md p-2 text-neutral-400 hover:bg-rose-50 hover:text-rose-700"><Trash2 size={14}/></button></div></td></tr>)}</tbody></table></div>{filteredProducts.length === 0 && <p className="p-8 text-center text-xs text-neutral-500">No products match this view.</p>}</div>
+          </div>}
+
+          {section === 'orders' && <div className="space-y-4"><div className="flex flex-wrap gap-2 rounded-xl border border-[#e9e4de] bg-white p-3"><div className="flex min-w-[180px] flex-1 items-center gap-2 px-2"><Search size={15} className="text-neutral-400"/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search order or customer…" className="w-full bg-transparent py-1.5 text-xs outline-none"/></div><select value={orderFilter} onChange={(event) => setOrderFilter(event.target.value)} className="rounded-lg border border-[#e9e4de] bg-white px-3 py-2 text-xs"><option value="all">All statuses</option>{Object.entries(statusLabel).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></div><div className="overflow-hidden rounded-xl border border-[#e9e4de] bg-white"><div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left text-xs"><thead className="bg-[#faf8f5] text-[10px] uppercase tracking-wider text-neutral-500"><tr><th className="px-4 py-3">Order</th><th className="px-4 py-3">Customer</th><th className="px-4 py-3">Total / payment</th><th className="px-4 py-3">Items</th><th className="px-4 py-3">Fulfillment</th></tr></thead><tbody className="divide-y divide-[#f0ece7]">{filteredOrders.map((order) => <tr key={order.id}><td className="px-4 py-3"><div className="font-semibold text-[#5b112b]">{order.id}</div><div className="mt-1 text-[10px] text-neutral-500">{new Date(order.date).toLocaleDateString('en-IN')}</div></td><td className="px-4 py-3"><div className="font-medium">{order.shippingAddress.fullName}</div><div className="mt-1 text-[10px] text-neutral-500">{order.shippingAddress.phone} · {order.shippingAddress.city}</div></td><td className="px-4 py-3"><div className="font-semibold">{money(order.total)}</div><div className="mt-1 text-[10px] text-neutral-500">{order.paymentMethod} · {order.paymentStatus}</div></td><td className="px-4 py-3">{order.items.reduce((sum, item) => sum + item.quantity, 0)} items</td><td className="px-4 py-3"><select value={order.status} onChange={(event) => updateOrderStatus(order.id, event.target.value as OrderStatus)} className="rounded-lg border border-[#e9e4de] bg-white px-2 py-2 text-[11px] font-medium">{Object.entries(statusLabel).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></td></tr>)}</tbody></table></div>{filteredOrders.length === 0 && <p className="p-8 text-center text-xs text-neutral-500">No orders match this search.</p>}</div></div>}
+
+          {section === 'customers' && <div className="overflow-hidden rounded-xl border border-[#e9e4de] bg-white"><div className="flex items-center gap-2 border-b border-[#f0ece7] p-3"><Search size={15} className="text-neutral-400"/><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search customers by name, email or phone…" className="w-full bg-transparent py-1 text-xs outline-none"/><span className="whitespace-nowrap text-[10px] text-neutral-500">{overview?.customers.filter((customer) => `${customer.name} ${customer.email} ${customer.phone}`.toLowerCase().includes(query.toLowerCase())).length} customers</span></div><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left text-xs"><thead className="bg-[#faf8f5] text-[10px] uppercase tracking-wider text-neutral-500"><tr><th className="px-4 py-3">Customer</th><th className="px-4 py-3">Joined</th><th className="px-4 py-3">Orders</th><th className="px-4 py-3">Lifetime spend</th><th className="px-4 py-3">Last order</th></tr></thead><tbody className="divide-y divide-[#f0ece7]">{(overview?.customers || []).filter((customer) => `${customer.name} ${customer.email} ${customer.phone}`.toLowerCase().includes(query.toLowerCase())).map((customer) => <tr key={customer.id}><td className="px-4 py-3"><div className="font-semibold">{customer.name}</div><div className="mt-1 text-[10px] text-neutral-500">{customer.email || customer.phone || 'No contact details'}</div></td><td className="px-4 py-3 text-neutral-600">{new Date(customer.joined).toLocaleDateString('en-IN')}</td><td className="px-4 py-3">{customer.orders}</td><td className="px-4 py-3 font-semibold">{money(customer.spend)}</td><td className="px-4 py-3 text-neutral-600">{customer.lastOrder ? new Date(customer.lastOrder).toLocaleDateString('en-IN') : '—'}</td></tr>)}</tbody></table></div></div>}
+
+          {section === 'reports' && <div className="space-y-5"><div className="grid grid-cols-2 gap-3 lg:grid-cols-4">{[{label:'Gross sales',value:money(stat?.revenue||0),icon:CircleDollarSign},{label:'Orders',value:stat?.orders||0,icon:ShoppingBag},{label:'Average order',value:money(stat?.orders ? (stat.revenue/stat.orders) : 0),icon:ArrowUpRight},{label:'Pending fulfillment',value:stat?.pending||0,icon:Clock3}].map(({label,value,icon:Icon})=><div key={label} className="rounded-xl border border-[#e9e4de] bg-white p-4"><Icon size={16} className="text-[#7b334a]"/><div className="mt-3 text-xl font-semibold">{value}</div><div className="mt-1 text-[11px] text-neutral-500">{label}</div></div>)}</div><div className="rounded-xl border border-[#e9e4de] bg-white p-5"><div className="flex items-center justify-between"><div><h2 className="font-serif text-lg font-semibold">Monthly sales</h2><p className="mt-1 text-xs text-neutral-500">Revenue and order count from the live order database</p></div><button onClick={exportReport} className="flex items-center gap-2 rounded-lg border border-[#e9e4de] px-3 py-2 text-xs font-medium"><Download size={14}/> Export</button></div><div className="mt-5 overflow-x-auto"><table className="w-full min-w-[420px] text-left text-xs"><thead className="border-b border-[#eee9e3] text-[10px] uppercase text-neutral-500"><tr><th className="py-3">Month</th><th className="py-3">Orders</th><th className="py-3">Sales</th><th className="py-3">Share</th></tr></thead><tbody className="divide-y divide-[#f0ece7]">{(overview?.monthlySales||[]).map((month)=><tr key={month.month}><td className="py-3 font-medium">{month.month}</td><td className="py-3">{month.orders}</td><td className="py-3 font-semibold">{money(month.revenue)}</td><td className="py-3"><div className="h-2 w-32 rounded-full bg-[#f1ece6]"><div className="h-2 rounded-full bg-[#762742]" style={{width:`${Math.max(2, month.revenue/(stat?.revenue||1)*100)}%`}}/></div></td></tr>)}</tbody></table>{overview?.monthlySales.length===0&&<p className="py-10 text-center text-xs text-neutral-500">Sales data will appear here after an order is placed.</p>}</div></div></div>}
+
+          {section === 'content' && <div className="space-y-4"><div className="rounded-xl border border-[#e9e4de] bg-white p-4 text-xs leading-relaxed text-neutral-600">These campaigns appear in the VYORA storefront hero carousel. Changes are saved to the store database and shown to shoppers.</div><div className="grid gap-4 xl:grid-cols-2">{banners.map((banner,index)=><article key={banner.id} className="overflow-hidden rounded-xl border border-[#e9e4de] bg-white"><div className="relative h-40 bg-[#32151e]"><img src={banner.image} alt="" className="h-full w-full object-cover opacity-70"/><div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent"/><div className="absolute bottom-4 left-4 right-4 text-white"><div className="text-[9px] uppercase tracking-[.18em] text-[#e4c88b]">{banner.kicker}</div><div className="mt-1 line-clamp-2 font-serif text-lg font-semibold">{banner.title}</div></div><span className={`absolute right-3 top-3 rounded-full px-2.5 py-1 text-[9px] font-semibold ${banner.active?'bg-emerald-100 text-emerald-800':'bg-white/90 text-neutral-600'}`}>{banner.active?'Live':'Hidden'}</span></div><div className="flex items-center justify-between gap-2 p-3"><span className="truncate text-[10px] text-neutral-500">Slide {index+1} · {ORDERED_CATEGORIES.find((item)=>item.id===banner.category)?.shortLabel||banner.category}</span><div className="flex shrink-0 gap-1"><button onClick={()=>void saveBanners(banners.map((item)=>item.id===banner.id?{...item,active:!item.active}:item))} className="rounded-md px-2 py-1.5 text-[10px] font-medium text-neutral-600 hover:bg-[#f6f1ed]">{banner.active?'Hide':'Publish'}</button><button onClick={()=>setBannerModal(banner)} aria-label="Edit campaign" className="rounded-md p-2 text-neutral-500 hover:bg-[#f6f1ed]"><Pencil size={14}/></button><button onClick={()=>{if(window.confirm('Remove this homepage campaign?')) void saveBanners(banners.filter((item)=>item.id!==banner.id));}} aria-label="Remove campaign" className="rounded-md p-2 text-neutral-400 hover:bg-rose-50 hover:text-rose-700"><Trash2 size={14}/></button></div></div></article>)}</div>{banners.length===0&&<div className="rounded-xl border border-dashed border-[#d8cec5] bg-white p-10 text-center text-xs text-neutral-500">No homepage campaigns. Add one to feature a collection.</div>}</div>}
+        </>}
+      </main>
+    </div>
+
+    {productModal && <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-3"><form onSubmit={saveProduct} className="max-h-[94vh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl sm:p-7"><div className="flex items-center justify-between"><div><div className="text-[10px] uppercase tracking-[.18em] text-[#8b5d48]">Catalog management</div><h2 className="mt-1 font-serif text-xl font-semibold">{productModal==='new'?'Add product':'Edit product'}</h2></div><button type="button" onClick={()=>setProductModal(null)} aria-label="Close" className="rounded-lg p-2 hover:bg-neutral-100"><X size={18}/></button></div><div className="grid gap-3 sm:grid-cols-2">{[['name','Product name',productModal==='new'?'':productModal.name],['brand','Brand',productModal==='new'?'VYORA':productModal.brand],['subCategory','Subcategory',productModal==='new'?'':productModal.subCategory],['image','Image URL',productModal==='new'?'':productModal.primaryImage]].map(([name,label,value])=><label key={name} className="text-[11px] font-medium text-neutral-600">{label}<input name={name} required={name==='name'} defaultValue={value} className="mt-1.5 w-full rounded-lg border border-[#e9e4de] bg-[#fcfbf9] px-3 py-2.5 text-xs text-neutral-900 outline-none focus:border-[#9b6672]"/></label>)}<label className="text-[11px] font-medium text-neutral-600">Category<select name="category" defaultValue={productModal==='new'?'fashion':productModal.category} className="mt-1.5 w-full rounded-lg border border-[#e9e4de] bg-[#fcfbf9] px-3 py-2.5 text-xs">{ORDERED_CATEGORIES.map((category)=><option key={category.id} value={category.id}>{category.shortLabel}</option>)}</select></label>{[['originalPrice','List price (₹)',productModal==='new'?0:productModal.originalPrice],['discountPrice','Selling price (₹)',productModal==='new'?0:productModal.discountPrice],['stockQuantity','Stock units',productModal==='new'?0:productModal.stockQuantity]].map(([name,label,value])=><label key={String(name)} className="text-[11px] font-medium text-neutral-600">{label}<input name={String(name)} type="number" min="0" required defaultValue={value} className="mt-1.5 w-full rounded-lg border border-[#e9e4de] bg-[#fcfbf9] px-3 py-2.5 text-xs"/></label>)}</div><div className="flex justify-end gap-2 border-t border-[#f0ece7] pt-4"><button type="button" onClick={()=>setProductModal(null)} className="rounded-lg px-4 py-2.5 text-xs font-medium text-neutral-600">Cancel</button><button disabled={saving} className="rounded-lg bg-[#5b112b] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{saving?'Saving…':'Save product'}</button></div></form></div>}
+
+    {bannerModal && <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-3"><form onSubmit={saveBanner} className="max-h-[94vh] w-full max-w-2xl space-y-4 overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl sm:p-7"><div className="flex items-center justify-between"><div><div className="text-[10px] uppercase tracking-[.18em] text-[#8b5d48]">Storefront content</div><h2 className="mt-1 font-serif text-xl font-semibold">{bannerModal==='new'?'New homepage campaign':'Edit homepage campaign'}</h2></div><button type="button" onClick={()=>setBannerModal(null)} aria-label="Close" className="rounded-lg p-2 hover:bg-neutral-100"><X size={18}/></button></div><div className="grid gap-3 sm:grid-cols-2">{[['kicker','Eyebrow',bannerModal==='new'?'':bannerModal.kicker],['edition','Collection note',bannerModal==='new'?'':bannerModal.edition],['title','Headline',bannerModal==='new'?'':bannerModal.title],['subtitle','Description',bannerModal==='new'?'':bannerModal.subtitle],['image','Image URL',bannerModal==='new'?'':bannerModal.image],['ctaText','Primary button',bannerModal==='new'?'Explore the collection':bannerModal.ctaText],['secondaryCta','Secondary button',bannerModal==='new'?'Shop all':bannerModal.secondaryCta]].map(([name,label,value])=><label key={name} className={`text-[11px] font-medium text-neutral-600 ${name==='subtitle'?'sm:col-span-2':''}`}>{label}{name==='subtitle'?<textarea name={name} required defaultValue={value} rows={3} className="mt-1.5 w-full rounded-lg border border-[#e9e4de] bg-[#fcfbf9] px-3 py-2.5 text-xs"/>:<input name={name} required={['title','image'].includes(name)} defaultValue={value} className="mt-1.5 w-full rounded-lg border border-[#e9e4de] bg-[#fcfbf9] px-3 py-2.5 text-xs"/>}</label>)}<label className="text-[11px] font-medium text-neutral-600">Primary category<select name="category" defaultValue={bannerModal==='new'?'fashion':bannerModal.category} className="mt-1.5 w-full rounded-lg border border-[#e9e4de] bg-[#fcfbf9] px-3 py-2.5 text-xs">{[{id:'all',shortLabel:'Shop all'},...ORDERED_CATEGORIES].map((category)=><option key={category.id} value={category.id}>{category.shortLabel}</option>)}</select></label><label className="text-[11px] font-medium text-neutral-600">Secondary category<select name="secondaryCategory" defaultValue={bannerModal==='new'?'all':bannerModal.secondaryCategory} className="mt-1.5 w-full rounded-lg border border-[#e9e4de] bg-[#fcfbf9] px-3 py-2.5 text-xs">{[{id:'all',shortLabel:'Shop all'},...ORDERED_CATEGORIES].map((category)=><option key={category.id} value={category.id}>{category.shortLabel}</option>)}</select></label><label className="flex items-center gap-2 text-xs text-neutral-700"><input name="active" type="checkbox" defaultChecked={bannerModal==='new'||bannerModal.active} className="accent-[#5b112b]"/> Publish on storefront</label></div><div className="flex justify-end gap-2 border-t border-[#f0ece7] pt-4"><button type="button" onClick={()=>setBannerModal(null)} className="rounded-lg px-4 py-2.5 text-xs font-medium text-neutral-600">Cancel</button><button disabled={saving} className="rounded-lg bg-[#5b112b] px-5 py-2.5 text-xs font-semibold text-white disabled:opacity-50">{saving?'Saving…':'Save campaign'}</button></div></form></div>}
+  </div>;
 };

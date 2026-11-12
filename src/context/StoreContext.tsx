@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Product, CartItem, Order, OrderItem, User, Coupon, CategoryId, Address, OrderStatus } from '../types';
+import { Product, CartItem, Order, OrderItem, User, Coupon, CategoryId, Address, OrderStatus, StoreCategory } from '../types';
 import { INITIAL_PRODUCTS } from '../data/products';
 import { INITIAL_COUPONS } from '../data/coupons';
+import { CATEGORY_METADATA, ORDERED_CATEGORIES } from '../data/categories';
 import { api } from '../lib/api';
 import {
   DeliveryLocation,
@@ -27,6 +28,9 @@ interface Toast {
 
 interface StoreContextType {
   products: Product[];
+  categories: StoreCategory[];
+  saveCategory: (category: StoreCategory, isNew: boolean) => Promise<boolean>;
+  removeCategory: (id: string) => Promise<boolean>;
   activePage: string;
   setActivePage: (page: string) => void;
   selectedProductId: string | null;
@@ -83,7 +87,7 @@ interface StoreContextType {
   couponDiscountAmount: number;
   applyCoupon: (code: string) => { success: boolean; message: string };
   removeCoupon: () => void;
-  addCoupon: (coupon: Coupon) => void;
+  addCoupon: (coupon: Coupon) => Promise<boolean>;
 
   // Checkout & Orders
   orders: Order[];
@@ -104,10 +108,11 @@ interface StoreContextType {
     razorpay_signature?: string;
   }) => Promise<Order>;
   trackOrder: (orderId: string) => Promise<void>;
-  updateOrderStatus: (orderId: string, status: OrderStatus) => void;
+  updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<boolean>;
 
   // User & Auth
   currentUser: User | null;
+  isAuthLoading: boolean;
   setCurrentUser: (user: User | null) => void;
   isAuthModalOpen: boolean;
   setIsAuthModalOpen: (open: boolean) => void;
@@ -126,9 +131,9 @@ interface StoreContextType {
   requestLocationPicker: () => void;
 
   // Admin Product CRUD
-  addProduct: (product: Omit<Product, 'id'>) => void;
-  updateProduct: (product: Product) => void;
-  deleteProduct: (id: string) => void;
+  addProduct: (product: Omit<Product, 'id'>) => Promise<boolean>;
+  updateProduct: (product: Product) => Promise<boolean>;
+  deleteProduct: (id: string) => Promise<boolean>;
 
   // Toast
   toasts: Toast[];
@@ -140,8 +145,20 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [products, setProducts] = useState<Product[]>(INITIAL_PRODUCTS);
+  const [categories, setCategories] = useState<StoreCategory[]>(
+    ORDERED_CATEGORIES.map(({ id, label, description, bannerImage }) => ({
+      id,
+      label,
+      description,
+      image: bannerImage
+    }))
+  );
 
-  const [activePage, setActivePage] = useState<string>('home');
+  const [activePage, setActivePage] = useState<string>(() =>
+    typeof window !== 'undefined' && window.location.pathname.replace(/\/+$/, '') === '/admin'
+      ? 'admin'
+      : 'home'
+  );
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<CategoryId>('all');
   const [selectedSubCategory, setSelectedSubCategory] = useState<string | null>(null);
@@ -218,6 +235,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // User
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(true);
 
   const [orders, setOrders] = useState<Order[]>([]);
@@ -274,6 +292,35 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
     let active = true;
+    api.categories().then(({ categories: serverCategories }) => {
+      if (!active) return;
+      const mergedCategories = serverCategories.map((category) => {
+        const fallback = CATEGORY_METADATA[category.id];
+        return {
+          ...category,
+          label: category.label || fallback?.label || category.id,
+          description: category.description || fallback?.description || '',
+          image: category.image || fallback?.bannerImage || ''
+        };
+      });
+      setCategories(mergedCategories.sort((a, b) => {
+        const aIndex = ORDERED_CATEGORIES.findIndex((category) => category.id === a.id);
+        const bIndex = ORDERED_CATEGORIES.findIndex((category) => category.id === b.id);
+        if (aIndex >= 0 || bIndex >= 0) {
+          if (aIndex < 0) return 1;
+          if (bIndex < 0) return -1;
+          return aIndex - bIndex;
+        }
+        return a.label.localeCompare(b.label);
+      }));
+    }).catch((error: Error) => {
+      if (active) addToast(`Could not load store categories: ${error.message}`, 'warning');
+    });
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
     api.coupons().then(({ coupons: serverCoupons }) => {
       if (active) setCoupons(serverCoupons);
     }).catch((error: Error) => {
@@ -306,6 +353,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (active && error.message !== 'Please sign in to continue') {
         addToast(`Could not restore your sign-in session: ${error.message}`, 'warning');
       }
+    }).finally(() => {
+      if (active) setIsAuthLoading(false);
     });
     return () => { active = false; };
   }, []);
@@ -554,11 +603,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     addToast('Coupon removed', 'info');
   };
 
-  const addCoupon = (coupon: Coupon) => {
-    api.addCoupon(coupon).then(({ coupon: savedCoupon }) => {
+  const addCoupon = async (coupon: Coupon) => {
+    try {
+      const { coupon: savedCoupon } = await api.addCoupon(coupon);
       setCoupons((prev) => [...prev, savedCoupon]);
       addToast(`Coupon "${savedCoupon.code}" created successfully!`);
-    }).catch((error: Error) => addToast(`Could not create coupon: ${error.message}`, 'warning'));
+      return true;
+    } catch (error) {
+      addToast(`Could not create coupon: ${(error as Error).message}`, 'warning');
+      return false;
+    }
   };
 
   // Wishlist operations
@@ -630,12 +684,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const updateOrderStatus = (orderId: string, status: OrderStatus) => {
-    api.updateOrderStatus(orderId, status).then(({ order }) => {
+  const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
+    try {
+      const { order } = await api.updateOrderStatus(orderId, status);
       setOrders((prev) => prev.map((existing) => existing.id === orderId ? order : existing));
       setCurrentOrder((prev) => prev?.id === orderId ? order : prev);
       addToast(`Order #${orderId} marked as ${status.replace('_', ' ').toUpperCase()}`);
-    }).catch((error: Error) => addToast(`Could not update order status: ${error.message}`, 'warning'));
+      return true;
+    } catch (error) {
+      addToast(`Could not update order status: ${(error as Error).message}`, 'warning');
+      return false;
+    }
   };
 
   const authenticateUser = async (
@@ -702,31 +761,77 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // Admin Product CRUD
-  const addProduct = (newProdData: Omit<Product, 'id'>) => {
-    api.addProduct(newProdData).then(({ product }) => {
+  const addProduct = async (newProdData: Omit<Product, 'id'>) => {
+    try {
+      const { product } = await api.addProduct(newProdData);
       setProducts((prev) => [product, ...prev]);
       addToast(`Product "${product.name}" added to catalog!`);
-    }).catch((error: Error) => addToast(`Could not add product: ${error.message}`, 'warning'));
+      return true;
+    } catch (error) {
+      addToast(`Could not add product: ${(error as Error).message}`, 'warning');
+      return false;
+    }
   };
 
-  const updateProduct = (updated: Product) => {
-    api.updateProduct(updated).then(({ product }) => {
+  const updateProduct = async (updated: Product) => {
+    try {
+      const { product } = await api.updateProduct(updated);
       setProducts((prev) => prev.map((item) => item.id === product.id ? product : item));
       addToast(`Product "${product.name}" updated!`);
-    }).catch((error: Error) => addToast(`Could not update product: ${error.message}`, 'warning'));
+      return true;
+    } catch (error) {
+      addToast(`Could not update product: ${(error as Error).message}`, 'warning');
+      return false;
+    }
   };
 
-  const deleteProduct = (id: string) => {
-    api.deleteProduct(id).then(() => {
+  const deleteProduct = async (id: string) => {
+    try {
+      await api.deleteProduct(id);
       setProducts((prev) => prev.filter((product) => product.id !== id));
       addToast('Product removed from catalog', 'warning');
-    }).catch((error: Error) => addToast(`Could not remove product: ${error.message}`, 'warning'));
+      return true;
+    } catch (error) {
+      addToast(`Could not remove product: ${(error as Error).message}`, 'warning');
+      return false;
+    }
+  };
+
+  const saveCategory = async (category: StoreCategory, isNew: boolean) => {
+    try {
+      const result = isNew
+        ? await api.addCategory(category)
+        : await api.updateCategory(category);
+      setCategories((prev) => isNew
+        ? [...prev, result.category]
+        : prev.map((item) => item.id === category.id ? result.category : item));
+      addToast(`Category "${result.category.label}" saved.`);
+      return true;
+    } catch (error) {
+      addToast(`Could not save category: ${(error as Error).message}`, 'warning');
+      return false;
+    }
+  };
+
+  const removeCategory = async (id: string) => {
+    try {
+      await api.deleteCategory(id);
+      setCategories((prev) => prev.filter((category) => category.id !== id));
+      addToast('Category removed.');
+      return true;
+    } catch (error) {
+      addToast(`Could not remove category: ${(error as Error).message}`, 'warning');
+      return false;
+    }
   };
 
   return (
     <StoreContext.Provider
       value={{
         products,
+        categories,
+        saveCategory,
+        removeCategory,
         activePage,
         setActivePage,
         selectedProductId,
@@ -791,6 +896,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         updateOrderStatus,
 
         currentUser,
+        isAuthLoading,
         setCurrentUser,
         isAuthModalOpen,
         setIsAuthModalOpen,

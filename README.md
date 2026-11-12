@@ -8,6 +8,10 @@ For online checkout, create `.env` in the project root (next to `server.ts`) fro
 
 Set `ADMIN_EMAIL` in `.env` if an account registered with that email should receive administrator access.
 
+The CMS is available at `/admin` (for example, `http://localhost:3000/admin`). Set `ADMIN_EMAIL` in the project `.env`, restart the API, then create an account using that exact email address or sign in to its existing account. On API startup, the configured account is promoted to the administrator role; all CMS API operations also verify the authenticated server-side session and role. Do not expose `ADMIN_EMAIL`-related credentials or session cookies in frontend configuration.
+
+The admin workspace includes live sales, customer, order and stock metrics; product, inventory, order-status, category and coupon management; and responsive order detail views. Product and category edits use the same SQLite-backed catalog served to the storefront. Product image uploads are limited to 350 KB per file and stored with the product record in SQLite; for larger catalogs, use durable image hosting and enter its image URLs instead.
+
 Start the API and frontend together from this project directory:
 
 ```text

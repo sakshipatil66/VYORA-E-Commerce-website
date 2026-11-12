@@ -1,4 +1,4 @@
-import { Address, CartItem, Coupon, Order, OrderStatus, Product, User } from '../types';
+import { Address, CartItem, Coupon, Order, OrderStatus, Product, StoreCategory, User } from '../types';
 
 const request = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
   const response = await fetch(`/api${path}`, {
@@ -18,6 +18,7 @@ const json = (body: unknown): RequestInit => ({ method: 'POST', body: JSON.strin
 
 export const api = {
   products: () => request<Product[]>('/products'),
+  categories: () => request<{ categories: StoreCategory[] }>('/categories'),
   coupons: () => request<{ coupons: Coupon[] }>('/coupons'),
   me: () => request<{ user: User }>('/auth/me'),
   login: (identity: string, password: string) =>
@@ -78,5 +79,22 @@ export const api = {
   deleteProduct: (productId: string) =>
     request<{ success: boolean }>(`/admin/products/${encodeURIComponent(productId)}`, { method: 'DELETE' }),
   addCoupon: (coupon: Coupon) =>
-    request<{ coupon: Coupon }>('/admin/coupons', json(coupon))
+    request<{ coupon: Coupon }>('/admin/coupons', json(coupon)),
+  adminSummary: () => request<{
+    customers: number;
+    products: number;
+    orders: number;
+    revenue: number;
+    recentOrders: Order[];
+    lowStock: Product[];
+  }>('/admin/summary'),
+  addCategory: (category: StoreCategory) =>
+    request<{ category: StoreCategory }>('/admin/categories', json(category)),
+  updateCategory: (category: StoreCategory) =>
+    request<{ category: StoreCategory }>(`/admin/categories/${encodeURIComponent(category.id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(category)
+    }),
+  deleteCategory: (categoryId: string) =>
+    request<{ success: boolean }>(`/admin/categories/${encodeURIComponent(categoryId)}`, { method: 'DELETE' })
 };

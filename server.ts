@@ -90,6 +90,12 @@ database.exec(`
     stock INTEGER NOT NULL,
     data_json TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS categories (
+    id TEXT PRIMARY KEY COLLATE NOCASE,
+    label TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    image TEXT NOT NULL DEFAULT ''
+  );
   CREATE TABLE IF NOT EXISTS coupons (
     code TEXT PRIMARY KEY COLLATE NOCASE,
     data_json TEXT NOT NULL
@@ -172,6 +178,20 @@ const initialCouponCount = database.prepare('SELECT COUNT(*) AS count FROM coupo
 if (initialCouponCount.count === 0) {
   const insertCoupon = database.prepare('INSERT INTO coupons (code, data_json) VALUES (?, ?)');
   for (const coupon of INITIAL_COUPONS) insertCoupon.run(coupon.code, JSON.stringify(coupon));
+}
+
+const existingCategories = database.prepare('SELECT DISTINCT category FROM products').all() as { category: string }[];
+const insertCategory = database.prepare(
+  'INSERT OR IGNORE INTO categories (id, label, description, image) VALUES (?, ?, ?, ?)'
+);
+for (const { category } of existingCategories) {
+  insertCategory.run(category, '', '', '');
+}
+
+const configuredAdminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+if (configuredAdminEmail) {
+  database.prepare("UPDATE users SET role = 'admin' WHERE email = ? COLLATE NOCASE")
+    .run(configuredAdminEmail);
 }
 
 app.use(express.json({ limit: '1mb' }));
@@ -412,6 +432,11 @@ app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 app.get('/api/products', (_req, res) => {
   const rows = database.prepare('SELECT data_json FROM products').all() as { data_json: string }[];
   res.json(rows.map((row) => JSON.parse(row.data_json) as Product));
+});
+
+app.get('/api/categories', (_req, res) => {
+  const rows = database.prepare('SELECT id, label, description, image FROM categories ORDER BY rowid').all();
+  res.json({ categories: rows });
 });
 
 app.get('/api/coupons', (_req, res) => {
@@ -886,6 +911,26 @@ app.patch('/api/orders/:orderId/status', ...authenticate((req, res) => {
   res.json({ order });
 }));
 
+app.get('/api/admin/summary', ...authenticate((req, res) => {
+  if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
+  const orderRows = database.prepare('SELECT data_json FROM orders ORDER BY created_at DESC')
+    .all() as { data_json: string }[];
+  const orders = orderRows.map(({ data_json }) => JSON.parse(data_json) as Order);
+  const productRows = database.prepare('SELECT data_json FROM products').all() as { data_json: string }[];
+  const products = productRows.map(({ data_json }) => JSON.parse(data_json) as Product);
+  const customers = database.prepare("SELECT COUNT(*) AS count FROM users WHERE role = 'customer'")
+    .get() as { count: number };
+  res.json({
+    customers: customers.count,
+    products: products.length,
+    orders: orders.length,
+    revenue: orders.reduce((total, order) => total + order.total, 0),
+    recentOrders: orders.slice(0, 6),
+    lowStock: products.filter((product) => product.stockQuantity <= 10)
+      .sort((a, b) => a.stockQuantity - b.stockQuantity).slice(0, 8)
+  });
+}));
+
 const saveProduct = (product: Product, isNew: boolean) => {
   const statement = isNew
     ? database.prepare('INSERT INTO products (id, category, name, price, stock, data_json) VALUES (?, ?, ?, ?, ?, ?)')
@@ -900,13 +945,16 @@ const saveProduct = (product: Product, isNew: boolean) => {
 app.post('/api/admin/products', ...authenticate((req, res) => {
   if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
   const product = req.body as Product;
-  const categories = ['fashion', 'jewellery', 'beauty', 'electronics', 'home', 'footwear', 'bags', 'toys', 'stationery', 'fitness', 'essentials', 'gifting'];
   if (!product || typeof product.name !== 'string' || !product.name.trim() ||
-      product.name.length > 200 || !categories.includes(product.category) ||
+      product.name.length > 200 || typeof product.category !== 'string' ||
+      !database.prepare('SELECT id FROM categories WHERE id = ?').get(product.category) ||
       !Number.isFinite(product.originalPrice) || product.originalPrice < 0 ||
       !Number.isFinite(product.discountPrice) || product.discountPrice < 0 ||
       product.discountPrice > product.originalPrice ||
-      !Number.isInteger(product.stockQuantity) || product.stockQuantity < 0) {
+      !Number.isInteger(product.stockQuantity) || product.stockQuantity < 0 ||
+      !Array.isArray(product.images) || product.images.some((image) =>
+        typeof image !== 'string' || image.length > 500_000
+      )) {
     fail(400, 'Product name, price, and stock are required');
   }
   product.id = `vyo-${randomUUID()}`;
@@ -919,9 +967,16 @@ app.put('/api/admin/products/:productId', ...authenticate((req, res) => {
   if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
   const product = req.body as Product;
   if (!product || product.id !== req.params.productId || typeof product.name !== 'string' ||
-      !product.name.trim() || !Number.isFinite(product.originalPrice) ||
+      !product.name.trim() || product.name.length > 200 ||
+      typeof product.category !== 'string' ||
+      !database.prepare('SELECT id FROM categories WHERE id = ?').get(product.category) ||
+      !Number.isFinite(product.originalPrice) || product.originalPrice < 0 ||
+      !Number.isFinite(product.discountPrice) || product.discountPrice < 0 ||
       !Number.isFinite(product.discountPrice) || product.discountPrice > product.originalPrice ||
-      !Number.isInteger(product.stockQuantity) || product.stockQuantity < 0) {
+      !Number.isInteger(product.stockQuantity) || product.stockQuantity < 0 ||
+      !Array.isArray(product.images) || product.images.some((image) =>
+        typeof image !== 'string' || image.length > 500_000
+      )) {
     fail(400, 'Product update is invalid');
   }
   if (!database.prepare('SELECT id FROM products WHERE id = ?').get(product.id)) fail(404, 'Product not found');
@@ -936,6 +991,51 @@ app.delete('/api/admin/products/:productId', ...authenticate((req, res) => {
   database.prepare('DELETE FROM wishlists WHERE product_id = ?').run(req.params.productId);
   const result = database.prepare('DELETE FROM products WHERE id = ?').run(req.params.productId);
   if (Number(result.changes) === 0) fail(404, 'Product not found');
+  res.json({ success: true });
+}));
+
+app.post('/api/admin/categories', ...authenticate((req, res) => {
+  if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
+  const id = typeof req.body.id === 'string' ? req.body.id.trim().toLowerCase() : '';
+  const label = typeof req.body.label === 'string' ? req.body.label.trim() : '';
+  const description = typeof req.body.description === 'string' ? req.body.description.trim() : '';
+  const image = typeof req.body.image === 'string' ? req.body.image.trim() : '';
+  if (!/^[a-z0-9][a-z0-9_-]{1,39}$/.test(id) || id === 'all' ||
+      label.length < 2 || label.length > 100 || description.length > 1000 || image.length > 2000) {
+    fail(400, 'Category name, identifier, or description is invalid');
+  }
+  try {
+    database.prepare('INSERT INTO categories (id, label, description, image) VALUES (?, ?, ?, ?)')
+      .run(id, label, description, image);
+  } catch (error) {
+    if ((error as Error).message.includes('UNIQUE')) fail(409, 'A category with that identifier already exists');
+    throw error;
+  }
+  res.status(201).json({ category: { id, label, description, image } });
+}));
+
+app.put('/api/admin/categories/:categoryId', ...authenticate((req, res) => {
+  if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
+  const label = typeof req.body.label === 'string' ? req.body.label.trim() : '';
+  const description = typeof req.body.description === 'string' ? req.body.description.trim() : '';
+  const image = typeof req.body.image === 'string' ? req.body.image.trim() : '';
+  if (label.length < 2 || label.length > 100 || description.length > 1000 || image.length > 2000) {
+    fail(400, 'Category name, description, or image is invalid');
+  }
+  const result = database.prepare(
+    'UPDATE categories SET label = ?, description = ?, image = ? WHERE id = ?'
+  ).run(label, description, image, req.params.categoryId);
+  if (Number(result.changes) === 0) fail(404, 'Category not found');
+  res.json({ category: { id: req.params.categoryId, label, description, image } });
+}));
+
+app.delete('/api/admin/categories/:categoryId', ...authenticate((req, res) => {
+  if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
+  const productCount = database.prepare('SELECT COUNT(*) AS count FROM products WHERE category = ?')
+    .get(req.params.categoryId) as { count: number };
+  if (productCount.count > 0) fail(409, 'Move or delete this category’s products before removing it');
+  const result = database.prepare('DELETE FROM categories WHERE id = ?').run(req.params.categoryId);
+  if (Number(result.changes) === 0) fail(404, 'Category not found');
   res.json({ success: true });
 }));
 

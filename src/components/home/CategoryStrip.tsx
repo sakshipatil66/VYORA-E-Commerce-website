@@ -101,7 +101,19 @@ export const CATEGORIES: CategoryItem[] = [
 ];
 
 export const CategoryStrip: React.FC = () => {
-  const { openCategoryPage } = useStore();
+  const { openCategoryPage, categories, products } = useStore();
+
+  const categoryCards = categories.map((category) => {
+    const fallback = CATEGORIES.find((item) => item.id === category.id);
+    const productCount = products.filter((product) => product.category === category.id).length;
+    return {
+      id: category.id,
+      name: category.label,
+      subtitle: category.description || fallback?.subtitle || 'Explore the VYORA collection',
+      count: `${productCount} ${productCount === 1 ? 'creation' : 'creations'}`,
+      image: category.image || fallback?.image || ''
+    };
+  });
 
   const handleSelect = (catId: CategoryId, subCat: string | null = null) => {
     openCategoryPage(catId, subCat);
@@ -119,7 +131,7 @@ export const CategoryStrip: React.FC = () => {
       >
         <div>
           <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-[0.22em] text-[#7A1438]">
-            Twelve Curated Pavilions
+            {categories.length} Curated Pavilions
           </p>
           <h2 className="font-serif text-2xl sm:text-4xl font-bold text-neutral-900 mt-1.5">
             Explore by Category
@@ -162,7 +174,7 @@ export const CategoryStrip: React.FC = () => {
 
       {/* Rich Portrait Image Category Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 sm:gap-5">
-        {CATEGORIES.map((cat, idx) => (
+        {categoryCards.map((cat, idx) => (
           <motion.button
             key={cat.id}
             initial={{ opacity: 0, y: 18 }}

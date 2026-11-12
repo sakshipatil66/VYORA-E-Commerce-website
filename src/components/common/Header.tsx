@@ -15,16 +15,9 @@ import { useStore } from '../../context/StoreContext';
 import { CategoryId } from '../../types';
 import { LocationSelector } from './LocationSelector';
 import { ProductImage } from './ProductImage';
-import { CATEGORY_METADATA, ORDERED_CATEGORIES, searchProducts } from '../../data/categories';
+import { resolveCategoryMeta, searchProducts } from '../../data/categories';
 
-const MORE_DEPARTMENTS: { id: CategoryId; label: string; subtitle: string }[] = [
-  { id: 'fashion', label: 'All Couture & Fashion', subtitle: 'Women, Men & Kids ethnic wear' },
-  { id: 'toys', label: 'Toys & Heritage Games', subtitle: 'Channapatna wood & Sheesham chess' },
-  { id: 'stationery', label: 'Books & Stationery', subtitle: 'Hand-bound khadi leather journals' },
-  { id: 'fitness', label: 'Mindful Fitness', subtitle: 'Organic cork alignment yoga mats' },
-  { id: 'essentials', label: 'Gourmet Pantry', subtitle: 'Pampore saffron & Vedic A2 ghee' },
-  { id: 'gifting', label: 'Royal Gift Hampers', subtitle: 'Bespoke brass keepsake trunks' }
-];
+const PRIMARY_CATEGORY_IDS = ['jewellery', 'beauty', 'electronics', 'footwear', 'home', 'bags'];
 
 const POPULAR_SEARCH_CHIPS = [
   'Banarasi Saree',
@@ -38,6 +31,7 @@ const POPULAR_SEARCH_CHIPS = [
 export const Header: React.FC = () => {
   const {
     products,
+    categories,
     activePage,
     setActivePage,
     selectedCategory,
@@ -100,13 +94,12 @@ export const Header: React.FC = () => {
   const matchingCategories = useMemo(() => {
     const q = inputVal.trim().toLowerCase();
     if (!q) return [];
-    return ORDERED_CATEGORIES.filter(
+    return categories.filter(
       (cat) =>
         cat.label.toLowerCase().includes(q) ||
-        cat.shortLabel.toLowerCase().includes(q) ||
-        cat.keywords.some((kw) => kw.includes(q))
+        cat.id.toLowerCase().includes(q)
     ).slice(0, 3);
-  }, [inputVal]);
+  }, [inputVal, categories]);
 
   const handleSearchFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -184,7 +177,7 @@ export const Header: React.FC = () => {
                     onClick={() => handleNavClick('shop', cat.id)}
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-[#E5D9CE] hover:border-[#7A1438] text-xs font-semibold text-[#4A0E17] transition-colors cursor-pointer"
                   >
-                    <span>{cat.shortLabel}</span>
+                    <span>{cat.label}</span>
                     <ArrowUpRight className="w-3 h-3 text-[#7A1438]" />
                   </button>
                 ))}
@@ -235,7 +228,7 @@ export const Header: React.FC = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-[#8C6D58] font-semibold truncate">
                           <span className="truncate">
-                            {prod.brand} · {CATEGORY_METADATA[prod.category]?.shortLabel || prod.category}
+                            {prod.brand} · {resolveCategoryMeta(prod.category, categories).shortLabel}
                           </span>
                           <span aria-hidden="true">·</span>
                           <span className="font-mono lowercase text-neutral-400 shrink-0">
@@ -514,42 +507,15 @@ export const Header: React.FC = () => {
             >
               Men
             </button>
-            <button
-              onClick={() => handleNavClick('shop', 'jewellery', null)}
-              className={navLinkClass(activePage === 'shop' && selectedCategory === 'jewellery')}
-            >
-              Jewellery
-            </button>
-            <button
-              onClick={() => handleNavClick('shop', 'beauty', null)}
-              className={navLinkClass(activePage === 'shop' && selectedCategory === 'beauty')}
-            >
-              Beauty
-            </button>
-            <button
-              onClick={() => handleNavClick('shop', 'electronics', null)}
-              className={navLinkClass(activePage === 'shop' && selectedCategory === 'electronics')}
-            >
-              Electronics
-            </button>
-            <button
-              onClick={() => handleNavClick('shop', 'footwear', null)}
-              className={navLinkClass(activePage === 'shop' && selectedCategory === 'footwear')}
-            >
-              Footwear
-            </button>
-            <button
-              onClick={() => handleNavClick('shop', 'home', null)}
-              className={navLinkClass(activePage === 'shop' && selectedCategory === 'home')}
-            >
-              Home Decor
-            </button>
-            <button
-              onClick={() => handleNavClick('shop', 'bags', null)}
-              className={navLinkClass(activePage === 'shop' && selectedCategory === 'bags')}
-            >
-              Bags
-            </button>
+            {categories.filter((category) => PRIMARY_CATEGORY_IDS.includes(category.id)).map((category) => (
+              <button
+                key={category.id}
+                onClick={() => handleNavClick('shop', category.id, null)}
+                className={navLinkClass(activePage === 'shop' && selectedCategory === category.id)}
+              >
+                {category.label}
+              </button>
+            ))}
 
             {/* More Categories Mega Popover */}
             <div className="relative group">
@@ -560,9 +526,9 @@ export const Header: React.FC = () => {
 
               <div className="absolute top-full left-0 pt-2 hidden group-hover:block z-50">
                 <div className="w-[440px] bg-white rounded-xl shadow-2xl border border-[#E6DBD1] p-4 grid grid-cols-2 gap-1.5">
-                  {MORE_DEPARTMENTS.map((dept) => (
+                  {categories.filter((category) => !PRIMARY_CATEGORY_IDS.includes(category.id)).map((dept) => (
                     <button
-                      key={dept.label}
+                      key={dept.id}
                       onClick={() => handleNavClick('shop', dept.id, null)}
                       className="group/item flex items-start justify-between gap-2 text-left p-2.5 rounded-lg hover:bg-[#FAF5F0] transition-colors cursor-pointer"
                     >
@@ -571,7 +537,7 @@ export const Header: React.FC = () => {
                           {dept.label}
                         </p>
                         <p className="text-[11px] text-neutral-500 mt-0.5 line-clamp-1">
-                          {dept.subtitle}
+                          {dept.description || 'Explore the VYORA collection'}
                         </p>
                       </div>
                       <ArrowUpRight className="w-3.5 h-3.5 text-[#D4AF37] opacity-0 group-hover/item:opacity-100 transition-opacity shrink-0 mt-0.5" />
@@ -634,20 +600,7 @@ export const Header: React.FC = () => {
             >
               Men’s Ethnic Wear
             </button>
-            {[
-              { id: 'fashion' as CategoryId, label: 'All Fashion & Couture' },
-              { id: 'jewellery' as CategoryId, label: 'Fine Jewellery' },
-              { id: 'beauty' as CategoryId, label: 'Beauty & Skincare' },
-              { id: 'electronics' as CategoryId, label: 'Electronics & Audio' },
-              { id: 'footwear' as CategoryId, label: 'Footwear & Juttis' },
-              { id: 'home' as CategoryId, label: 'Home Decor' },
-              { id: 'bags' as CategoryId, label: 'Bags & Clutches' },
-              { id: 'toys' as CategoryId, label: 'Toys & Board Games' },
-              { id: 'stationery' as CategoryId, label: 'Books & Stationery' },
-              { id: 'fitness' as CategoryId, label: 'Fitness & Yoga' },
-              { id: 'essentials' as CategoryId, label: 'Gourmet Pantry' },
-              { id: 'gifting' as CategoryId, label: 'Gift Hampers' }
-            ].map((item) => (
+            {categories.map((item) => (
               <button
                 key={item.id}
                 onClick={() => handleNavClick('shop', item.id, null)}

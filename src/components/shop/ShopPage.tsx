@@ -15,8 +15,7 @@ import { useStore } from '../../context/StoreContext';
 import { ProductCard } from '../common/ProductCard';
 import { ProductCarousel } from '../common/ProductCarousel';
 import {
-  CATEGORY_METADATA,
-  ORDERED_CATEGORIES,
+  resolveCategoryMeta,
   WOMENS_FASHION_SUBCATEGORIES,
   isMensProduct,
   isWomensProduct
@@ -28,6 +27,7 @@ type SortOption = 'popular' | 'newest' | 'price-asc' | 'price-desc' | 'featured'
 export const ShopPage: React.FC = () => {
   const {
     products,
+    categories,
     selectedCategory,
     selectedSubCategory,
     setSelectedSubCategory,
@@ -250,7 +250,7 @@ export const ShopPage: React.FC = () => {
     (selectedSubCategory !== null && !selectedSubCategory.startsWith('__'));
 
   // Category Metadata & Dynamic Title for Women / Men / Specific Category
-  const activeMeta = CATEGORY_METADATA[selectedCategory] || CATEGORY_METADATA.all;
+  const activeMeta = resolveCategoryMeta(selectedCategory, categories);
   const isWomenView = selectedCategory === 'fashion' && selectedSubCategory === '__women__';
   const isMenView = selectedCategory === 'fashion' && selectedSubCategory === '__men__';
 
@@ -399,7 +399,7 @@ export const ShopPage: React.FC = () => {
           >
             Men’s Fashion
           </button>
-          {ORDERED_CATEGORIES.map((cat) => {
+          {categories.map((cat) => {
             const isSelected =
               selectedCategory === cat.id &&
               !(cat.id === 'fashion' && (isWomenView || isMenView));
@@ -413,7 +413,7 @@ export const ShopPage: React.FC = () => {
                     : 'bg-white hover:bg-[#F3ECE7] text-neutral-700 border border-[#E5D9CE]'
                 }`}
               >
-                {cat.shortLabel}
+                {cat.label}
               </button>
             );
           })}

@@ -3,13 +3,14 @@ import { Search, X, ArrowRight, Sparkles } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { CategoryId } from '../../types';
 import { ProductImage } from './ProductImage';
-import { CATEGORY_METADATA, ORDERED_CATEGORIES, searchProducts } from '../../data/categories';
+import { resolveCategoryMeta, searchProducts } from '../../data/categories';
 
 export const SearchModal: React.FC = () => {
   const {
     isSearchModalOpen,
     setIsSearchModalOpen,
     products,
+    categories,
     openProductDetail,
     openCategoryPage,
     submitSearch,
@@ -130,14 +131,14 @@ export const SearchModal: React.FC = () => {
                   Browse by Category
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {ORDERED_CATEGORIES.map((cat) => (
+                  {categories.map((cat) => (
                     <button
                       key={cat.id}
                       type="button"
                       onClick={() => handleCategorySearch(cat.id)}
                       className="p-2.5 text-left text-xs font-medium bg-white hover:bg-[#F3ECE7] rounded-lg border border-[#EBE4DD] flex items-center justify-between cursor-pointer"
                     >
-                      <span>{cat.shortLabel}</span>
+                      <span>{cat.label}</span>
                       <ArrowRight className="w-3 h-3 text-[#7A1438]" />
                     </button>
                   ))}
@@ -191,7 +192,7 @@ export const SearchModal: React.FC = () => {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5 text-[11px] text-[#8C7A70] uppercase tracking-wider font-medium truncate">
                             <span className="truncate">
-                              {prod.brand} · {CATEGORY_METADATA[prod.category]?.shortLabel || prod.category}
+                              {prod.brand} · {resolveCategoryMeta(prod.category, categories).shortLabel}
                             </span>
                             <span aria-hidden="true">·</span>
                             <span className="font-mono lowercase text-neutral-400 shrink-0">
