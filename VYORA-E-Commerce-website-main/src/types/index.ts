@@ -168,3 +168,14 @@ export interface User {
   clubPoints: number;
   addresses: Address[];
 }
+export interface AdminCustomer {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  clubTier: 'Silver' | 'Gold' | 'Platinum';
+  clubPoints: number;
+  createdAt: string;
+  totalOrders: number;
+  totalSpent: number;
+}
