@@ -61,3 +61,27 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #7a1438;
 }
+
+@media print {
+  body.vyora-printing-invoice * {
+    visibility: hidden !important;
+  }
+  body.vyora-printing-invoice #vyora-printable-invoice,
+  body.vyora-printing-invoice #vyora-printable-invoice * {
+    visibility: visible !important;
+  }
+  body.vyora-printing-invoice #vyora-printable-invoice {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  body.vyora-printing-invoice .vyora-no-print {
+    display: none !important;
+  }
+}

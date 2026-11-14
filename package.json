@@ -4,10 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently --kill-others --names api,web --prefix-colors yellow,cyan \"npm:dev:api\" \"npm:dev:web\"",
-    "dev:api": "tsx watch server.ts",
-    "dev:web": "wait-on http://127.0.0.1:3001/api/health && vite --strictPort --port=3000 --host=0.0.0.0",
-    "start:api": "tsx server.ts",
+    "dev": "tsx server.ts",
+    "start": "tsx server.ts",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",

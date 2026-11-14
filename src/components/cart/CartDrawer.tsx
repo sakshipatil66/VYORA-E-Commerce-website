@@ -14,6 +14,7 @@ export const CartDrawer: React.FC = () => {
     cartDiscount,
     couponDiscountAmount,
     appliedCoupon,
+    coupons,
     applyCoupon,
     removeCoupon,
     updateCartQuantity,
@@ -30,6 +31,7 @@ export const CartDrawer: React.FC = () => {
 
   const [couponInput, setCouponInput] = useState('');
   const [couponError, setCouponError] = useState('');
+  const [applyingCoupon, setApplyingCoupon] = useState(false);
 
   if (!isCartDrawerOpen) return null;
 
@@ -38,15 +40,28 @@ export const CartDrawer: React.FC = () => {
   const deliveryProgress = Math.min(100, (cartSubtotal / freeDeliveryThreshold) * 100);
   const estDate = formatEstimatedDate(selectedLocation.expressDays);
 
-  const handleApplyCoupon = (e: React.FormEvent) => {
+  const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
     setCouponError('');
-    if (!couponInput.trim()) return;
-    const res = applyCoupon(couponInput);
+    if (!couponInput.trim() || applyingCoupon) return;
+    setApplyingCoupon(true);
+    const res = await applyCoupon(couponInput);
+    setApplyingCoupon(false);
     if (!res.success) {
       setCouponError(res.message);
     } else {
       setCouponInput('');
+    }
+  };
+
+  const handleQuickApplyCoupon = async (code: string) => {
+    if (applyingCoupon) return;
+    setCouponError('');
+    setApplyingCoupon(true);
+    const res = await applyCoupon(code);
+    setApplyingCoupon(false);
+    if (!res.success) {
+      setCouponError(res.message);
     }
   };
 
@@ -290,41 +305,42 @@ export const CartDrawer: React.FC = () => {
                     </button>
                   </div>
                 ) : (
-                  <form onSubmit={handleApplyCoupon} className="space-y-1.5">
+                  <form onSubmit={(e) => void handleApplyCoupon(e)} className="space-y-1.5">
                     <div className="flex gap-2">
                       <input
                         type="text"
                         value={couponInput}
                         onChange={(e) => setCouponInput(e.target.value)}
-                        placeholder="Promo code (e.g. FIRST500)"
+                        placeholder={coupons[0] ? `Promo code (e.g. ${coupons[0].code})` : 'Enter promo code'}
                         className="flex-1 py-1.5 px-3 text-xs uppercase bg-[#FAF7F5] border border-[#EBE4DD] rounded-md focus:outline-none focus:border-[#7A1438] font-mono"
                       />
                       <button
                         type="submit"
-                        className="py-1.5 px-3 text-xs font-semibold text-white bg-[#5B112B] hover:bg-[#430C1F] rounded-md transition-colors"
+                        disabled={applyingCoupon}
+                        className="py-1.5 px-3 text-xs font-semibold text-white bg-[#5B112B] hover:bg-[#430C1F] disabled:opacity-50 rounded-md transition-colors cursor-pointer"
                       >
-                        Apply
+                        {applyingCoupon ? '...' : 'Apply'}
                       </button>
                     </div>
                     {couponError && <p className="text-[11px] text-rose-700">{couponError}</p>}
-                    <div className="flex items-center gap-2 text-[10px] text-neutral-500">
-                      <span>Try:</span>
-                      <button
-                        type="button"
-                        onClick={() => applyCoupon('FIRST500')}
-                        className="underline font-mono text-[#7A1438] hover:text-[#5B112B]"
-                      >
-                        FIRST500
-                      </button>
-                      <span>·</span>
-                      <button
-                        type="button"
-                        onClick={() => applyCoupon('FESTIVE25')}
-                        className="underline font-mono text-[#7A1438] hover:text-[#5B112B]"
-                      >
-                        FESTIVE25
-                      </button>
-                    </div>
+                    {coupons.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-2 text-[10px] text-neutral-500">
+                        <span>Try:</span>
+                        {coupons.slice(0, 2).map((offer, idx) => (
+                          <React.Fragment key={offer.code}>
+                            {idx > 0 && <span>·</span>}
+                            <button
+                              type="button"
+                              disabled={applyingCoupon}
+                              onClick={() => void handleQuickApplyCoupon(offer.code)}
+                              className="underline font-mono text-[#7A1438] hover:text-[#5B112B] cursor-pointer disabled:opacity-50"
+                            >
+                              {offer.code}
+                            </button>
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    )}
                   </form>
                 )}
               </div>

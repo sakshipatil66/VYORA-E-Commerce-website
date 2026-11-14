@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Product, CartItem, Order, OrderItem, User, Coupon, CategoryId, Address, OrderStatus, StoreCategory } from '../types';
+import { Product, CartItem, Order, OrderItem, User, Coupon, CategoryId, Address, OrderStatus, OrderShipmentInfo, StoreCategory, ReturnReason, ReturnRequest } from '../types';
 import { INITIAL_PRODUCTS } from '../data/products';
-import { INITIAL_COUPONS } from '../data/coupons';
 import { CATEGORY_METADATA, ORDERED_CATEGORIES } from '../data/categories';
 import { api } from '../lib/api';
 import {
@@ -85,7 +84,8 @@ interface StoreContextType {
   appliedCoupon: Coupon | null;
   coupons: Coupon[];
   couponDiscountAmount: number;
-  applyCoupon: (code: string) => { success: boolean; message: string };
+  refreshCoupons: () => Promise<void>;
+  applyCoupon: (code: string) => Promise<{ success: boolean; message: string }>;
   removeCoupon: () => void;
   addCoupon: (coupon: Coupon) => Promise<boolean>;
 
@@ -108,7 +108,18 @@ interface StoreContextType {
     razorpay_signature?: string;
   }) => Promise<Order>;
   trackOrder: (orderId: string) => Promise<void>;
-  updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<boolean>;
+  updateOrderStatus: (orderId: string, status: OrderStatus, note?: string) => Promise<boolean>;
+  updateOrderShipment: (orderId: string, shipment: OrderShipmentInfo) => Promise<boolean>;
+
+  // Customer Returns
+  returns: ReturnRequest[];
+  refreshReturns: () => Promise<void>;
+  createReturnRequest: (data: {
+    orderId: string;
+    reason: ReturnReason;
+    description?: string;
+    items: { productId: string; quantity: number }[];
+  }) => Promise<ReturnRequest | null>;
 
   // User & Auth
   currentUser: User | null;
@@ -130,7 +141,8 @@ interface StoreContextType {
   locationPickerSignal: number;
   requestLocationPicker: () => void;
 
-  // Admin Product CRUD
+  // Admin Product CRUD & Refresh
+  refreshProducts: () => Promise<void>;
   addProduct: (product: Omit<Product, 'id'>) => Promise<boolean>;
   updateProduct: (product: Product) => Promise<boolean>;
   deleteProduct: (id: string) => Promise<boolean>;
@@ -231,7 +243,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Coupons
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
-  const [coupons, setCoupons] = useState<Coupon[]>(INITIAL_COUPONS);
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
 
   // User
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -239,6 +251,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(true);
 
   const [orders, setOrders] = useState<Order[]>([]);
+  const [returns, setReturns] = useState<ReturnRequest[]>([]);
   const [currentOrder, setCurrentOrder] = useState<Order | null>(null);
   const [authReturnPage, setAuthReturnPage] = useState<string | null>(null);
 
@@ -362,16 +375,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     if (!currentUser) {
       setOrders([]);
+      setReturns([]);
       setWishlist([]);
       return;
     }
     let active = true;
-    Promise.all([api.cart(), api.wishlist(), api.orders()])
-      .then(([serverCart, serverWishlist, serverOrders]) => {
+    Promise.all([api.cart(), api.wishlist(), api.orders(), api.returns()])
+      .then(([serverCart, serverWishlist, serverOrders, serverReturns]) => {
         if (!active) return;
         setCart(serverCart.items);
         setWishlist(serverWishlist.productIds);
         setOrders(serverOrders.orders);
+        setReturns(serverReturns.returns);
       })
       .catch((error: Error) => {
         if (!active) return;
@@ -459,6 +474,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Cart operations
   const addToCart = (product: Product, quantity = 1, size?: string, color?: string) => {
+    if (product.isActive === false) {
+      addToast('This product is currently unavailable', 'warning');
+      return;
+    }
+    if (!product.inStock || product.stockQuantity <= 0) {
+      addToast('This product is currently out of stock', 'warning');
+      return;
+    }
     const selectedSize = size || (product.sizes && product.sizes.length > 0 ? product.sizes[0] : undefined);
     const selectedColor = color || (product.colors && product.colors.length > 0 ? product.colors[0].name : undefined);
     const itemKey = `${product.id}-${selectedSize || 'nosize'}-${selectedColor || 'nocolor'}`;
@@ -565,37 +588,75 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
   const cartDiscount = cartOriginalTotal - cartSubtotal;
 
-  // Coupon calculation
+  // Coupon calculation (category-aware, matching server evaluateCouponForCart)
   let couponDiscountAmount = 0;
-  if (appliedCoupon && cartSubtotal >= appliedCoupon.minOrderValue) {
-    if (appliedCoupon.discountType === 'percentage') {
-      const calculated = (cartSubtotal * appliedCoupon.discountValue) / 100;
-      couponDiscountAmount = appliedCoupon.maxDiscount
-        ? Math.min(calculated, appliedCoupon.maxDiscount)
-        : calculated;
-    } else {
-      couponDiscountAmount = appliedCoupon.discountValue;
+  if (appliedCoupon && cart.length > 0) {
+    const allowedCategories = appliedCoupon.applicableCategories || [];
+    const eligibleLines = allowedCategories.length > 0
+      ? cart.filter((item) => allowedCategories.includes(item.product.category))
+      : cart;
+    const eligibleSubtotal = eligibleLines.reduce(
+      (sum, item) => sum + item.product.discountPrice * item.quantity,
+      0
+    );
+    if (eligibleLines.length > 0 && eligibleSubtotal >= appliedCoupon.minOrderValue) {
+      const rawDiscount = appliedCoupon.discountType === 'percentage'
+        ? Math.min(
+            (eligibleSubtotal * appliedCoupon.discountValue) / 100,
+            appliedCoupon.maxDiscount ?? Number.POSITIVE_INFINITY
+          )
+        : appliedCoupon.discountValue;
+      couponDiscountAmount = Math.round(Math.min(rawDiscount, eligibleSubtotal) * 100) / 100;
     }
   }
+
+  useEffect(() => {
+    if (!appliedCoupon) return;
+    if (cart.length === 0) {
+      setAppliedCoupon(null);
+      return;
+    }
+    const allowedCategories = appliedCoupon.applicableCategories || [];
+    const eligibleLines = allowedCategories.length > 0
+      ? cart.filter((item) => allowedCategories.includes(item.product.category))
+      : cart;
+    const eligibleSubtotal = eligibleLines.reduce(
+      (sum, item) => sum + item.product.discountPrice * item.quantity,
+      0
+    );
+    if (eligibleLines.length === 0 || eligibleSubtotal < appliedCoupon.minOrderValue) {
+      setAppliedCoupon(null);
+    }
+  }, [cart, appliedCoupon]);
 
   const deliveryFee = cartSubtotal > 999 || cartSubtotal === 0 ? 0 : 99;
   const cartTotal = Math.max(0, cartSubtotal - couponDiscountAmount + deliveryFee);
 
-  const applyCoupon = (code: string) => {
+  const refreshCoupons = async () => {
+    const { coupons: serverCoupons } = await api.coupons();
+    setCoupons(serverCoupons);
+  };
+
+  const applyCoupon = async (code: string): Promise<{ success: boolean; message: string }> => {
     const clean = code.trim().toUpperCase();
-    const found = coupons.find((c) => c.code === clean);
-    if (!found) {
-      return { success: false, message: 'This coupon code is not valid' };
+    if (!clean) {
+      const msg = 'Enter a coupon code';
+      addToast(msg, 'warning');
+      return { success: false, message: msg };
     }
-    if (cartSubtotal < found.minOrderValue) {
-      return {
-        success: false,
-        message: `Add items worth ₹${found.minOrderValue - cartSubtotal} more to apply this coupon`
-      };
+    try {
+      const result = await api.validateCoupon(
+        clean,
+        cart.map((item) => ({ productId: item.productId, quantity: item.quantity }))
+      );
+      setAppliedCoupon(result.coupon);
+      addToast(`Coupon "${result.coupon.code}" applied (saves ₹${result.discountAmount.toLocaleString('en-IN')})!`);
+      return { success: true, message: 'Coupon applied!' };
+    } catch (error) {
+      const msg = (error as Error).message || 'This coupon could not be applied';
+      addToast(msg, 'warning');
+      return { success: false, message: msg };
     }
-    setAppliedCoupon(found);
-    addToast(`Coupon "${found.code}" applied successfully!`);
-    return { success: true, message: 'Coupon applied!' };
   };
 
   const removeCoupon = () => {
@@ -606,7 +667,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const addCoupon = async (coupon: Coupon) => {
     try {
       const { coupon: savedCoupon } = await api.addCoupon(coupon);
-      setCoupons((prev) => [...prev, savedCoupon]);
+      await refreshCoupons().catch(() => { /* ignore background coupon sync failure */ });
       addToast(`Coupon "${savedCoupon.code}" created successfully!`);
       return true;
     } catch (error) {
@@ -684,16 +745,54 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
+  const updateOrderStatus = async (orderId: string, status: OrderStatus, note?: string) => {
     try {
-      const { order } = await api.updateOrderStatus(orderId, status);
+      const { order } = await api.updateOrderStatus(orderId, status, note);
       setOrders((prev) => prev.map((existing) => existing.id === orderId ? order : existing));
       setCurrentOrder((prev) => prev?.id === orderId ? order : prev);
-      addToast(`Order #${orderId} marked as ${status.replace('_', ' ').toUpperCase()}`);
+      if (status === 'cancelled') {
+        api.products().then(setProducts).catch(() => { /* ignore background inventory refresh error */ });
+      }
+      addToast(`Order #${orderId} marked as ${status.replace(/_/g, ' ').toUpperCase()}`);
       return true;
     } catch (error) {
       addToast(`Could not update order status: ${(error as Error).message}`, 'warning');
       return false;
+    }
+  };
+
+  const updateOrderShipment = async (orderId: string, shipment: OrderShipmentInfo) => {
+    try {
+      const { order } = await api.updateOrderShipment(orderId, shipment);
+      setOrders((prev) => prev.map((existing) => existing.id === orderId ? order : existing));
+      setCurrentOrder((prev) => prev?.id === orderId ? order : prev);
+      addToast(`Shipment details saved for order #${orderId}`);
+      return true;
+    } catch (error) {
+      addToast(`Could not update shipment details: ${(error as Error).message}`, 'warning');
+      return false;
+    }
+  };
+
+  const refreshReturns = async () => {
+    const result = await api.returns();
+    setReturns(result.returns);
+  };
+
+  const createReturnRequest = async (data: {
+    orderId: string;
+    reason: ReturnReason;
+    description?: string;
+    items: { productId: string; quantity: number }[];
+  }): Promise<ReturnRequest | null> => {
+    try {
+      const { returnRequest } = await api.createReturn(data);
+      setReturns((prev) => [returnRequest, ...prev.filter((r) => r.id !== returnRequest.id)]);
+      addToast(`Return request #${returnRequest.id} submitted.`);
+      return returnRequest;
+    } catch (error) {
+      addToast(`Could not submit return request: ${(error as Error).message}`, 'warning');
+      return null;
     }
   };
 
@@ -728,9 +827,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     } finally {
       setCurrentUser(null);
       setOrders([]);
+      setReturns([]);
       setWishlist([]);
       setCart([]);
       setSavedForLater([]);
+      setAppliedCoupon(null);
       setCurrentOrder(null);
       setActivePage('home');
       setAuthReturnPage(null);
@@ -760,11 +861,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  // Admin Product CRUD
+  // Admin Product CRUD & Storefront Sync
+  const refreshProducts = async () => {
+    const serverProducts = await api.products();
+    setProducts(serverProducts);
+  };
+
   const addProduct = async (newProdData: Omit<Product, 'id'>) => {
     try {
       const { product } = await api.addProduct(newProdData);
-      setProducts((prev) => [product, ...prev]);
+      if (product.isActive !== false) {
+        setProducts((prev) => [product, ...prev]);
+      }
       addToast(`Product "${product.name}" added to catalog!`);
       return true;
     } catch (error) {
@@ -776,7 +884,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const updateProduct = async (updated: Product) => {
     try {
       const { product } = await api.updateProduct(updated);
-      setProducts((prev) => prev.map((item) => item.id === product.id ? product : item));
+      setProducts((prev) => {
+        if (product.isActive === false) {
+          return prev.filter((item) => item.id !== product.id);
+        }
+        const exists = prev.some((item) => item.id === product.id);
+        return exists
+          ? prev.map((item) => item.id === product.id ? product : item)
+          : [product, ...prev];
+      });
       addToast(`Product "${product.name}" updated!`);
       return true;
     } catch (error) {
@@ -881,6 +997,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         appliedCoupon,
         coupons,
         couponDiscountAmount,
+        refreshCoupons,
         applyCoupon,
         removeCoupon,
         addCoupon,
@@ -894,6 +1011,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         createOrder,
         trackOrder,
         updateOrderStatus,
+        updateOrderShipment,
+
+        returns,
+        refreshReturns,
+        createReturnRequest,
 
         currentUser,
         isAuthLoading,
@@ -911,6 +1033,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         locationPickerSignal,
         requestLocationPicker,
 
+        refreshProducts,
         addProduct,
         updateProduct,
         deleteProduct,
