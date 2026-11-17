@@ -130,6 +130,26 @@ database.exec(`
     order_id TEXT,
     payment_id TEXT
   );
+    CREATE TABLE IF NOT EXISTS homepage_banners (
+    id TEXT PRIMARY KEY,
+    kicker TEXT NOT NULL DEFAULT '',
+    edition TEXT NOT NULL DEFAULT '',
+    title TEXT NOT NULL,
+    subtitle TEXT NOT NULL DEFAULT '',
+    image TEXT NOT NULL,
+    category TEXT NOT NULL,
+    cta_text TEXT NOT NULL DEFAULT '',
+    secondary_cta TEXT NOT NULL DEFAULT '',
+    secondary_category TEXT NOT NULL,
+    display_order INTEGER NOT NULL DEFAULT 0,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    starts_at TEXT,
+    expires_at TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE INDEX IF NOT EXISTS idx_homepage_banners_order
+    ON homepage_banners(is_active, display_order);
   CREATE UNIQUE INDEX IF NOT EXISTS users_phone_unique ON users(phone) WHERE phone <> '';
 `);
 const paymentIntentColumns = database.prepare('PRAGMA table_info(payment_intents)').all() as { name: string }[];
@@ -456,6 +476,7 @@ app.get('/api/admin/overview', ...authenticate((req, res) => {
     customerMetrics.set(row.user_id, current);
   }
   const revenue = parsedOrders.reduce((sum, order) => sum + order.total, 0);
+
   const byMonth = new Map<string, { orders: number; revenue: number }>();
   for (const order of parsedOrders) {
     const month = new Date(order.date).toLocaleString('en-IN', { month: 'short', year: 'numeric' });

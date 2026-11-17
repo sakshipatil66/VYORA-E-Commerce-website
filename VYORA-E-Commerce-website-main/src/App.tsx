@@ -604,17 +604,16 @@ const MainLayout: React.FC = () => {
   return (
     <div className="min-h-screen flex flex-col bg-[#FAF7F5] text-neutral-900">
       {/* Slim Dismissible Privilege Bar */}
-      <AnnouncementBar />
+      {activePage !== 'admin' && <AnnouncementBar />}
 
       {/* Sticky 3-Zone Header */}
-      <Header />
+      {activePage !== 'admin' && <Header />}
 
       {/* Main Dynamic Viewport */}
       <main className="flex-1">{renderCurrentPage()}</main>
 
       {/* Luxury Multi-Column Footer */}
-      <Footer />
-
+   {activePage !== 'admin' && <Footer />}
       {/* Global Interactive Overlays */}
       <SearchModal />
       <CartDrawer />
