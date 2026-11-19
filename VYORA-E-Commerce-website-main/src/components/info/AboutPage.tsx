@@ -1,10 +1,12 @@
-import React from 'react';
+﻿import React from 'react';
 import { Award, ShieldCheck, HeartHandshake, Sparkles, ArrowRight } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
+import { useCmsContent } from '../../hooks/useCmsContent';
 import aboutArtisanHands from '../../assets/images/about_artisan_hands_1793694632158.jpg';
 
 export const AboutPage: React.FC = () => {
   const { setActivePage, setSelectedCategory } = useStore();
+  const cmsContent = useCmsContent();
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
@@ -13,13 +15,13 @@ export const AboutPage: React.FC = () => {
       <div className="text-center max-w-3xl mx-auto space-y-4">
         <div className="flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-widest text-[#7A1438]">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>The Maison & The Mission</span>
+          <span>{cmsContent?.about.eyebrow || 'The Maison & The Mission'}</span>
         </div>
         <h1 className="font-serif text-3xl sm:text-5xl font-bold text-neutral-900 leading-tight">
-          Crafting Contemporary Indian Luxury from Ancient Loom Roots
+          {cmsContent?.about.title || 'Crafting Contemporary Indian Luxury from Ancient Loom Roots'}
         </h1>
         <p className="text-sm sm:text-base text-neutral-600 leading-relaxed font-light">
-          Headquartered in <strong className="font-semibold text-neutral-800">Pune, Maharashtra, India</strong>, VYORA was born out of a profound reverence for India’s living craft continuum — uniting generational weavers, filigree silversmiths, Ayurvedic botanists, acoustic engineers, and leather ateliers on one modern marketplace.
+          Headquartered in <strong className="font-semibold text-neutral-800">Pune, Maharashtra, India</strong>, VYORA was born out of a profound reverence for Indiaâ€™s living craft continuum â€” uniting generational weavers, filigree silversmiths, Ayurvedic botanists, acoustic engineers, and leather ateliers on one modern marketplace.
         </p>
       </div>
 
@@ -35,7 +37,7 @@ export const AboutPage: React.FC = () => {
           <div className="text-white max-w-lg">
             <span className="text-xs uppercase font-bold text-[#D4AF37] tracking-wider">Our Sacred Promise</span>
             <h3 className="font-serif text-xl sm:text-2xl font-bold mt-1">
-              Zero Imitations. 100% Certified Direct Artisan Hands.
+              {cmsContent?.about.promiseTitle || 'Zero Imitations. 100% Certified Direct Artisan Hands.'}
             </h3>
           </div>
         </div>
@@ -63,7 +65,7 @@ export const AboutPage: React.FC = () => {
             Direct Weaver Dignity
           </h3>
           <p className="text-xs text-neutral-600 leading-relaxed font-light">
-            By eliminating up to 5 distributor markups, our artisan guilds earn up to 4× standard market wages, keeping younger generations inspired to continue their families' ancestral looms.
+            By eliminating up to 5 distributor markups, our artisan guilds earn up to 4Ã— standard market wages, keeping younger generations inspired to continue their families' ancestral looms.
           </p>
         </div>
 
@@ -121,3 +123,4 @@ export const AboutPage: React.FC = () => {
     </div>
   );
 };
+

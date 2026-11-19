@@ -596,16 +596,25 @@ export const Header: React.FC = () => {
             </div>
           </div>
 
-          <button
-            onClick={() => handleNavClick('offers')}
-            className={`whitespace-nowrap shrink-0 py-1.5 text-[13px] tracking-wide font-semibold transition-colors cursor-pointer ${
-              activePage === 'offers'
-                ? 'text-[#9F1239] underline underline-offset-8'
-                : 'text-[#9F1239] hover:text-[#4A0E17]'
-            }`}
-          >
-            Offers & Coupons
-          </button>
+                   <div className="flex items-center gap-6">
+            <button
+              onClick={() => handleNavClick('offers')}
+              className={`whitespace-nowrap shrink-0 py-1.5 text-[13px] tracking-wide font-semibold transition-colors cursor-pointer ${
+                activePage === 'offers'
+                  ? 'text-[#9F1239] underline underline-offset-8'
+                  : 'text-[#9F1239] hover:text-[#4A0E17]'
+              }`}
+            >
+              Offers & Coupons
+            </button>
+
+            <button
+              onClick={() => handleNavClick('contact')}
+              className={navLinkClass(activePage === 'contact')}
+            >
+              Contact
+            </button>
+          </div>
         </nav>
       </div>
 

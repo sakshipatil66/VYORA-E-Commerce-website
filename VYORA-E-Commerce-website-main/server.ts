@@ -1,4 +1,4 @@
-import dotenv from 'dotenv';
+﻿import dotenv from 'dotenv';
 import express, { NextFunction, Request, Response } from 'express';
 import { randomBytes, scrypt as scryptCallback, timingSafeEqual, createHash, createHmac, randomUUID } from 'node:crypto';
 import { promisify } from 'node:util';
@@ -151,6 +151,33 @@ database.exec(`
   CREATE INDEX IF NOT EXISTS idx_homepage_banners_order
     ON homepage_banners(is_active, display_order);
   CREATE UNIQUE INDEX IF NOT EXISTS users_phone_unique ON users(phone) WHERE phone <> '';
+
+  CREATE TABLE IF NOT EXISTS contact_inquiries (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL COLLATE NOCASE,
+    subject TEXT NOT NULL,
+    message TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'new',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE INDEX IF NOT EXISTS idx_contact_inquiries_created
+    ON contact_inquiries(created_at DESC);
+  CREATE TABLE IF NOT EXISTS audit_logs (
+    id TEXT PRIMARY KEY,
+    actor_id TEXT NOT NULL,
+    actor_name TEXT NOT NULL,
+    actor_role TEXT NOT NULL,
+    action TEXT NOT NULL,
+    target_entity TEXT NOT NULL,
+    target_id TEXT NOT NULL DEFAULT '',
+    metadata_json TEXT NOT NULL DEFAULT '{}',
+    ip_address TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at
+    ON audit_logs(created_at DESC);
 `);
 const paymentIntentColumns = database.prepare('PRAGMA table_info(payment_intents)').all() as { name: string }[];
 if (!paymentIntentColumns.some((column) => column.name === 'payment_id')) {
@@ -209,6 +236,56 @@ const defaultBanners = [
 if (!database.prepare('SELECT key FROM cms_settings WHERE key = ?').get('home_banners')) {
   database.prepare('INSERT INTO cms_settings (key, data_json) VALUES (?, ?)').run('home_banners', JSON.stringify(defaultBanners));
 }
+
+
+const defaultStoreCmsContent = {
+  about: {
+    eyebrow: '',
+    title: '',
+    description: '',
+    promiseTitle: '',
+    promiseDescription: ''
+  },
+  contact: {
+    eyebrow: '',
+    title: '',
+    description: '',
+    email: 'concierge@vyora.in',
+    hours: 'Monday – Sunday · 9:00 AM to 9:00 PM IST',
+    location: 'Pune, Maharashtra, India',
+    conciergeTitle: '',
+    conciergeDescription: ''
+  },
+  faq: {
+    eyebrow: '',
+    title: '',
+    description: '',
+    items: []
+  },
+  policies: {
+    shipping: { title: '', summary: '', body: '' },
+    returns: { title: '', summary: '', body: '' },
+    privacy: { title: '', summary: '', body: '' },
+    terms: { title: '', summary: '', body: '' }
+  },
+  footer: {
+    description: '',
+    email: 'concierge@vyora.in',
+    newsletterTitle: '',
+    newsletterDescription: ''
+  },
+  seo: {
+    title: 'VYORA | Curated Indian Luxury',
+    description: '',
+    keywords: '',
+    ogTitle: '',
+    ogDescription: ''
+  }
+};
+
+database.prepare(
+  'INSERT OR IGNORE INTO cms_settings (key, data_json) VALUES (?, ?)'
+).run('store_content', JSON.stringify(defaultStoreCmsContent));
 
 app.use(express.json({ limit: '1mb' }));
 
@@ -326,7 +403,7 @@ const calculateCheckoutAmountPaise = (userId: string, checkout: Record<string, u
     : undefined;
   const coupon = couponRow ? JSON.parse(couponRow.data_json) as (typeof INITIAL_COUPONS)[number] : undefined;
   if (couponCode && !coupon) fail(400, 'This coupon code is not valid');
-  if (coupon && subtotal < coupon.minOrderValue) fail(400, `This coupon requires a minimum order of ₹${coupon.minOrderValue}`);
+  if (coupon && subtotal < coupon.minOrderValue) fail(400, `This coupon requires a minimum order of â‚¹${coupon.minOrderValue}`);
   const couponDiscount = coupon
     ? coupon.discountType === 'percentage'
       ? Math.min((subtotal * coupon.discountValue) / 100, coupon.maxDiscount ?? Number.POSITIVE_INFINITY)
@@ -395,6 +472,32 @@ const requireAdmin = (req: AuthenticatedRequest, res: Response, next: NextFuncti
   next();
 };
 
+const recordAdminActivity = (
+  req: AuthenticatedRequest,
+  action: string,
+  targetEntity: string,
+  targetId = '',
+  metadata: Record<string, unknown> = {}
+) => {
+  if (!req.user || req.user.role !== 'admin') return;
+
+  database.prepare(`
+    INSERT INTO audit_logs (
+      id, actor_id, actor_name, actor_role, action,
+      target_entity, target_id, metadata_json, ip_address
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    randomUUID(),
+    req.user.id,
+    req.user.name,
+    req.user.role,
+    action,
+    targetEntity,
+    targetId,
+    JSON.stringify(metadata),
+    req.ip || ''
+  );
+};
 const authenticate = (handler: (req: AuthenticatedRequest, res: Response) => unknown) =>
   [requireAuth, (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
@@ -443,6 +546,38 @@ const authRateLimit = (req: Request, _res: Response, next: NextFunction) => {
   next();
 };
 
+app.post('/api/contact/inquiries', (req, res) => {
+  const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const subject = typeof req.body?.subject === 'string' ? req.body.subject.trim() : '';
+  const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
+
+  if (name.length < 2 || name.length > 100) fail(400, 'Enter a name between 2 and 100 characters.');
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail(400, 'Enter a valid email address.');
+  if (!subject || subject.length > 150) fail(400, 'Select a valid inquiry subject.');
+  if (message.length < 10 || message.length > 5000) fail(400, 'Your message must be between 10 and 5000 characters.');
+
+  const id = randomUUID();
+  database.prepare(`
+    INSERT INTO contact_inquiries (id, name, email, subject, message)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(id, name, email, subject, message);
+
+  res.status(201).json({ success: true, inquiryId: id });
+});
+
+app.get('/api/admin/contact-inquiries', ...authenticate((req, res) => {
+  if (req.user!.role !== 'admin') fail(403, 'Administrator access is required.');
+
+  const inquiries = database.prepare(`
+    SELECT id, name, email, subject, message, status, created_at AS createdAt
+    FROM contact_inquiries
+    ORDER BY created_at DESC
+    LIMIT 200
+  `).all();
+
+  res.json({ inquiries });
+}));
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 
 app.get('/api/products', (_req, res) => {
@@ -460,6 +595,115 @@ app.get('/api/content/home-banners', (_req, res) => {
   res.json({ banners: (JSON.parse(row.data_json) as Record<string, unknown>[]).filter((banner) => banner.active !== false) });
 });
 
+
+app.get('/api/content/settings', (_req, res) => {
+  const row = database.prepare(
+    'SELECT data_json FROM cms_settings WHERE key = ?'
+  ).get('store_content') as { data_json: string } | undefined;
+
+  res.json({
+    content: row ? JSON.parse(row.data_json) : defaultStoreCmsContent
+  });
+});
+app.get('/api/admin/audit-logs', ...authenticate((req, res) => {
+  if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
+
+  const page = Math.max(1, Number.parseInt(String(req.query.page || '1'), 10) || 1);
+  const pageSize = Math.min(100, Math.max(1, Number.parseInt(String(req.query.pageSize || '20'), 10) || 20));
+
+  const action = String(req.query.action || '').trim();
+  const entity = String(req.query.entity || '').trim();
+  const actorId = String(req.query.actorId || '').trim();
+
+  const conditions: string[] = [];
+  const params: (string | number)[] = [];
+
+  if (action) {
+    conditions.push('action = ?');
+    params.push(action);
+  }
+  if (entity) {
+    conditions.push('target_entity = ?');
+    params.push(entity);
+  }
+  if (actorId) {
+    conditions.push('actor_id = ?');
+    params.push(actorId);
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  const totalRow = database
+    .prepare(`SELECT COUNT(*) AS total FROM audit_logs ${where}`)
+    .get(...params) as { total: number };
+
+  const rows = database.prepare(`
+    SELECT id, actor_id, actor_name, actor_role, action,
+           target_entity, target_id, metadata_json, created_at
+    FROM audit_logs
+    ${where}
+    ORDER BY created_at DESC
+    LIMIT ? OFFSET ?
+  `).all(...params, pageSize, (page - 1) * pageSize) as Array<{
+    id: string;
+    actor_id: string;
+    actor_name: string;
+    actor_role: string;
+    action: string;
+    target_entity: string;
+    target_id: string;
+    metadata_json: string;
+    created_at: string;
+  }>;
+
+  const logs = rows.map((row) => {
+    let metadata: Record<string, unknown> = {};
+    try {
+      const parsed: unknown = JSON.parse(row.metadata_json || '{}');
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        metadata = parsed as Record<string, unknown>;
+      }
+    } catch {
+      metadata = {};
+    }
+
+    return {
+      id: row.id,
+      actorId: row.actor_id,
+      actorName: row.actor_name,
+      actorRole: row.actor_role,
+      action: row.action,
+      targetEntity: row.target_entity,
+      targetId: row.target_id,
+      metadata,
+      ipAddress: '',
+      createdAt: row.created_at
+    };
+  });
+
+  const actors = database.prepare(`
+    SELECT DISTINCT actor_id AS id, actor_name AS name
+    FROM audit_logs ORDER BY actor_name
+  `).all() as Array<{ id: string; name: string }>;
+
+  const actions = (database.prepare(`
+    SELECT DISTINCT action FROM audit_logs ORDER BY action
+  `).all() as Array<{ action: string }>).map((row) => row.action);
+
+  const entities = (database.prepare(`
+    SELECT DISTINCT target_entity FROM audit_logs ORDER BY target_entity
+  `).all() as Array<{ target_entity: string }>).map((row) => row.target_entity);
+
+  res.json({
+    logs,
+    total: Number(totalRow.total || 0),
+    page,
+    pageSize,
+    actors,
+    actions,
+    entities
+  });
+}));
 app.get('/api/admin/overview', ...authenticate((req, res) => {
   if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
   const orders = database.prepare('SELECT data_json FROM orders ORDER BY created_at DESC').all() as { data_json: string }[];
@@ -506,6 +750,51 @@ app.put('/api/admin/content/home-banners', ...authenticate((req, res) => {
   res.json({ banners });
 }));
 
+
+app.put('/api/admin/content/settings', ...authenticate((req, res) => {
+  if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
+
+  const content = req.body?.content;
+  if (!content || typeof content !== 'object' || Array.isArray(content)) {
+    fail(400, 'CMS content must be a valid object');
+  }
+
+  const sections = ['about', 'contact', 'faq', 'policies', 'footer', 'seo'];
+  if (sections.some((section) =>
+    !content[section] || typeof content[section] !== 'object' || Array.isArray(content[section])
+  )) {
+    fail(400, 'One or more CMS sections are missing or invalid');
+  }
+
+  if (
+    !content.faq ||
+    !Array.isArray(content.faq.items) ||
+    content.faq.items.length > 100 ||
+    content.faq.items.some((item: unknown) =>
+      !item || typeof item !== 'object' ||
+      typeof (item as Record<string, unknown>).question !== 'string' ||
+      typeof (item as Record<string, unknown>).answer !== 'string' ||
+      typeof (item as Record<string, unknown>).category !== 'string'
+    )
+  ) {
+    fail(400, 'FAQ entries are invalid');
+  }
+
+  const serialized = JSON.stringify(content);
+  if (serialized.length > 200000) fail(400, 'CMS content exceeds the allowed size');
+
+  database.prepare(`
+    INSERT INTO cms_settings (key, data_json)
+    VALUES (?, ?)
+    ON CONFLICT(key) DO UPDATE SET data_json = excluded.data_json
+  `).run('store_content', serialized);
+
+  recordAdminActivity(req, 'update', 'store_content', 'store_content', {
+    sections
+  });
+
+  res.json({ content });
+}));
 app.get('/api/payments/config', (_req, res) => {
   const { credentials, error } = getRazorpayCredentials();
   res.json({
@@ -542,7 +831,7 @@ app.post('/api/payments/razorpay/order', ...authenticate(async (req, res) => {
     giftWrap: req.body.giftWrap === true
   };
   const amountPaise = calculateCheckoutAmountPaise(req.user!.id, checkout);
-  if (amountPaise < 100) fail(400, 'Online payment requires a minimum order total of ₹1');
+  if (amountPaise < 100) fail(400, 'Online payment requires a minimum order total of â‚¹1');
 
   const gatewayOrder = await razorpayRequest('/orders', 'POST', {
     amount: amountPaise,
@@ -815,7 +1104,7 @@ app.post('/api/orders', ...authenticate(async (req, res) => {
     : undefined;
   const coupon = couponRow ? JSON.parse(couponRow.data_json) as (typeof INITIAL_COUPONS)[number] : undefined;
   if (couponCode && !coupon) fail(400, 'This coupon code is not valid');
-  if (coupon && subtotal < coupon.minOrderValue) fail(400, `This coupon requires a minimum order of ₹${coupon.minOrderValue}`);
+  if (coupon && subtotal < coupon.minOrderValue) fail(400, `This coupon requires a minimum order of â‚¹${coupon.minOrderValue}`);
   const couponDiscount = coupon
     ? coupon.discountType === 'percentage'
       ? Math.min((subtotal * coupon.discountValue) / 100, coupon.maxDiscount ?? Number.POSITIVE_INFINITY)
@@ -967,9 +1256,11 @@ app.patch('/api/orders/:orderId/status', ...authenticate((req, res) => {
   const row = database.prepare('SELECT data_json FROM orders WHERE id = ?').get(req.params.orderId) as { data_json: string } | undefined;
   if (row === undefined) return fail(404, 'Order not found');
   const order = JSON.parse(row.data_json) as Order;
+  const previousStatus = order.status;
   order.status = status;
   database.prepare('UPDATE orders SET status = ?, data_json = ? WHERE id = ?')
     .run(status, JSON.stringify(order), req.params.orderId);
+  recordAdminActivity(req, 'order_status_updated', 'order', req.params.orderId, { previousStatus, newStatus: status });
   res.json({ order });
 }));
 
@@ -999,6 +1290,7 @@ app.post('/api/admin/products', ...authenticate((req, res) => {
   product.id = `vyo-${randomUUID()}`;
   product.inStock = product.stockQuantity > 0;
   saveProduct(product, true);
+  recordAdminActivity(req, 'product_created', 'product', product.id, { name: product.name, category: product.category });
   res.status(201).json({ product });
 }));
 
@@ -1014,15 +1306,18 @@ app.put('/api/admin/products/:productId', ...authenticate((req, res) => {
   if (!database.prepare('SELECT id FROM products WHERE id = ?').get(product.id)) fail(404, 'Product not found');
   product.inStock = product.stockQuantity > 0;
   saveProduct(product, false);
+  recordAdminActivity(req, 'product_updated', 'product', product.id, { name: product.name, category: product.category });
   res.json({ product });
 }));
 
 app.delete('/api/admin/products/:productId', ...authenticate((req, res) => {
   if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
+  const productRow = database.prepare('SELECT name FROM products WHERE id = ?').get(req.params.productId) as { name: string } | undefined;
   database.prepare('DELETE FROM cart_items WHERE product_id = ?').run(req.params.productId);
   database.prepare('DELETE FROM wishlists WHERE product_id = ?').run(req.params.productId);
   const result = database.prepare('DELETE FROM products WHERE id = ?').run(req.params.productId);
   if (Number(result.changes) === 0) fail(404, 'Product not found');
+  recordAdminActivity(req, 'product_deleted', 'product', req.params.productId, { name: productRow?.name || '' });
   res.json({ success: true });
 }));
 
@@ -1063,3 +1358,8 @@ database.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(Date.now());
 app.listen(port, '127.0.0.1', () => {
   console.log(`VYORA API listening on http://127.0.0.1:${port}`);
 });
+
+
+
+
+

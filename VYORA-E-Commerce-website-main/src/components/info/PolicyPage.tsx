@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import {
   Truck,
   RotateCcw,
@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { formatEstimatedDate, formatLocationLabel } from '../../data/locations';
+import { useCmsContent } from '../../hooks/useCmsContent';
 
 export type PolicyType = 'shipping' | 'returns' | 'privacy' | 'terms';
 
@@ -45,15 +46,15 @@ const POLICY_DOCUMENTS: Record<PolicyType, PolicyDocument> = {
       {
         heading: '02. Shipping Charges & Complimentary Threshold',
         paragraphs: [
-          'Orders valued at ₹999 or above qualify for complimentary insured shipping across serviceable Indian cities, including Pune, Maharashtra, India.',
-          'Orders below ₹999 carry a flat ₹99 handling and insured courier fee displayed transparently prior to payment.'
+          'Orders valued at â‚¹999 or above qualify for complimentary insured shipping across serviceable Indian cities, including Pune, Maharashtra, India.',
+          'Orders below â‚¹999 carry a flat â‚¹99 handling and insured courier fee displayed transparently prior to payment.'
         ]
       },
       {
         heading: '03. Estimated Transit Timelines',
         paragraphs: [
-          'Priority deliveries within Pune, Maharashtra, India typically arrive within 1–2 business days for ready-to-ship catalog items.',
-          'Major metro destinations (Mumbai, Bengaluru, New Delhi, Hyderabad, Chennai, Kolkata, Ahmedabad, Jaipur) typically arrive within 2–4 business days via Blue Dart Priority Air or Delhivery Express.',
+          'Priority deliveries within Pune, Maharashtra, India typically arrive within 1â€“2 business days for ready-to-ship catalog items.',
+          'Major metro destinations (Mumbai, Bengaluru, New Delhi, Hyderabad, Chennai, Kolkata, Ahmedabad, Jaipur) typically arrive within 2â€“4 business days via Blue Dart Priority Air or Delhivery Express.',
           'Handloom couture or custom-sized creations requiring finishing receive live milestone updates on the My Orders & Order Tracking page.'
         ]
       },
@@ -75,7 +76,7 @@ const POLICY_DOCUMENTS: Record<PolicyType, PolicyDocument> = {
       {
         heading: '01. 7-Day Return & Size Exchange Window',
         paragraphs: [
-          'Most fashion, footwear, bags, home décor, accessories, stationery, and unopened lifestyle creations are eligible for return or size exchange within 7 calendar days from the date of delivery.',
+          'Most fashion, footwear, bags, home dÃ©cor, accessories, stationery, and unopened lifestyle creations are eligible for return or size exchange within 7 calendar days from the date of delivery.',
           'Items must remain unused, unwashed, and accompanied by original Silk Mark / BIS 925 certificates, artisan tags, dust bags, and protective boxes.'
         ]
       },
@@ -89,7 +90,7 @@ const POLICY_DOCUMENTS: Record<PolicyType, PolicyDocument> = {
       {
         heading: '03. Complimentary Reverse Pickup',
         paragraphs: [
-          'Once a return request is initiated from My Orders or through our Concierge Desk, we arrange complimentary reverse pickup across Pune, Maharashtra, India and serviceable Indian cities within 24–48 hours.'
+          'Once a return request is initiated from My Orders or through our Concierge Desk, we arrange complimentary reverse pickup across Pune, Maharashtra, India and serviceable Indian cities within 24â€“48 hours.'
         ]
       },
       {
@@ -111,7 +112,7 @@ const POLICY_DOCUMENTS: Record<PolicyType, PolicyDocument> = {
       {
         heading: '01. Information We Collect',
         paragraphs: [
-          'We process only the details you voluntarily provide to fulfill your shopping experience — including your name, email address, selected city/state location (defaulting to Pune, Maharashtra, India), saved shipping details, wishlist items, and order history.',
+          'We process only the details you voluntarily provide to fulfill your shopping experience â€” including your name, email address, selected city/state location (defaulting to Pune, Maharashtra, India), saved shipping details, wishlist items, and order history.',
           'We never use fake GPS tracking or access device location sensors without explicit user input; your delivery city is controlled solely through our transparent Location Selector.'
         ]
       },
@@ -146,14 +147,14 @@ const POLICY_DOCUMENTS: Record<PolicyType, PolicyDocument> = {
       {
         heading: '01. Authentic Multi-Category Marketplace',
         paragraphs: [
-          'VYORA curates authentic creations across 12 departments — Fashion, Fine Jewellery, Beauty & Skincare, Electronics, Footwear, Home Décor, Bags, Toys, Books & Stationery, Mindful Fitness, Gourmet Pantry, and Royal Gifting.',
+          'VYORA curates authentic creations across 12 departments â€” Fashion, Fine Jewellery, Beauty & Skincare, Electronics, Footwear, Home DÃ©cor, Bags, Toys, Books & Stationery, Mindful Fitness, Gourmet Pantry, and Royal Gifting.',
           'Handwoven textiles, natural gemstones, carved wood, and brassware exhibit subtle artisanal variations that are hallmarks of genuine handcrafted work rather than defects.'
         ]
       },
       {
         heading: '02. Pricing, Taxes & Promotional Codes',
         paragraphs: [
-          'All product prices on VYORA are displayed in Indian Rupees (₹ INR) inclusive of applicable Goods and Services Tax (GST).',
+          'All product prices on VYORA are displayed in Indian Rupees (â‚¹ INR) inclusive of applicable Goods and Services Tax (GST).',
           'Promotional coupons (such as FIRST500 or ROYAL1000) apply subject to minimum cart thresholds displayed on the Offers & Coupons page and cannot be combined with duplicate voucher codes on a single order.'
         ]
       },
@@ -183,7 +184,18 @@ const POLICY_TABS: { id: PolicyType; label: string; icon: React.ReactNode }[] = 
 
 export const PolicyPage: React.FC<{ policyType: PolicyType }> = ({ policyType }) => {
   const { setActivePage, openCategoryPage, selectedLocation, requestLocationPicker } = useStore();
-  const doc = POLICY_DOCUMENTS[policyType] || POLICY_DOCUMENTS.shipping;
+  const cmsContent = useCmsContent();
+  const baseDoc = POLICY_DOCUMENTS[policyType] || POLICY_DOCUMENTS.shipping;
+  const cmsPolicy = cmsContent?.policies?.[policyType];
+  const cmsParagraphs = cmsPolicy?.body?.split(/\r?\n\s*\r?\n/).map((paragraph) => paragraph.trim()).filter(Boolean) || [];
+  const doc = {
+    ...baseDoc,
+    title: cmsPolicy?.title?.trim() || baseDoc.title,
+    summary: cmsPolicy?.summary?.trim() || baseDoc.summary,
+    sections: cmsParagraphs.length
+      ? [{ heading: cmsPolicy?.title?.trim() || baseDoc.title, paragraphs: cmsParagraphs }]
+      : baseDoc.sections
+  };
   const locationLabel = formatLocationLabel(selectedLocation);
   const estDate = formatEstimatedDate(selectedLocation.expressDays);
 
@@ -251,7 +263,7 @@ export const PolicyPage: React.FC<{ policyType: PolicyType }> = ({ policyType })
           <div className="flex items-center gap-2 text-rose-100">
             <MapPin className="w-4 h-4 text-[#D4AF37] shrink-0" />
             <span>
-              Active Delivery Location: <strong className="text-white">{locationLabel}</strong> · Est. Priority Arrival by{' '}
+              Active Delivery Location: <strong className="text-white">{locationLabel}</strong> Â· Est. Priority Arrival by{' '}
               <strong className="text-[#D4AF37]">{estDate}</strong>
             </span>
           </div>
@@ -315,3 +327,4 @@ export const PolicyPage: React.FC<{ policyType: PolicyType }> = ({ policyType })
     </div>
   );
 };
+

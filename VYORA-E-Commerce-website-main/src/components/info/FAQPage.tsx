@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, HelpCircle } from 'lucide-react';
+import { useCmsContent } from '../../hooks/useCmsContent';
 
 interface FAQItem {
   question: string;
@@ -16,12 +17,12 @@ const FAQS: FAQItem[] = [
   {
     category: 'Shipping & Transit',
     question: 'What are your delivery timelines for Pune, Maharashtra, India and other cities?',
-    answer: 'Orders for our default location in Pune, Maharashtra, India qualify for Priority Pune Dispatch (1–2 business days). Major metros across India (Mumbai, Bengaluru, New Delhi, Hyderabad, Chennai, Kolkata, Jaipur, Ahmedabad, Kochi) receive insured deliveries within 2 to 4 business days.'
+    answer: 'Orders for our default location in Pune, Maharashtra, India qualify for Priority Pune Dispatch (1â€“2 business days). Major metros across India (Mumbai, Bengaluru, New Delhi, Hyderabad, Chennai, Kolkata, Jaipur, Ahmedabad, Kochi) receive insured deliveries within 2 to 4 business days.'
   },
   {
     category: 'Payments & COD',
     question: 'How does Cash on Delivery (COD) work on high-value orders?',
-    answer: 'We provide Cash on Delivery for orders across India up to ₹25,000. For orders above ₹999, there is zero COD handling charge. You can pay cash or scan the courier agent’s dynamic UPI QR code right at your doorstep.'
+    answer: 'We provide Cash on Delivery for orders across India up to â‚¹25,000. For orders above â‚¹999, there is zero COD handling charge. You can pay cash or scan the courier agentâ€™s dynamic UPI QR code right at your doorstep.'
   },
   {
     category: 'Returns & Exchanges',
@@ -37,6 +38,8 @@ const FAQS: FAQItem[] = [
 
 export const FAQPage: React.FC = () => {
   const [openIdx, setOpenIdx] = useState<number | null>(0);
+  const cmsContent = useCmsContent();
+  const visibleFaqs = cmsContent?.faq.items?.length ? cmsContent.faq.items : FAQS;
 
   const toggle = (idx: number) => {
     setOpenIdx(openIdx === idx ? null : idx);
@@ -49,19 +52,19 @@ export const FAQPage: React.FC = () => {
       <div className="text-center max-w-2xl mx-auto mb-10">
         <div className="flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-widest text-[#7A1438]">
           <HelpCircle className="w-4 h-4" />
-          <span>Knowledge Sanctuary</span>
+          <span>{cmsContent?.faq.eyebrow || 'Knowledge Sanctuary'}</span>
         </div>
         <h1 className="font-serif text-3xl font-bold text-neutral-900 mt-1">
-          Frequently Answered Questions
+          {cmsContent?.faq.title || 'Frequently Answered Questions'}
         </h1>
         <p className="text-xs text-neutral-500 mt-2">
-          Everything you need to know about our artisan guilds, purity stamps, delivery, and payments.
+          {cmsContent?.faq.description || 'Everything you need to know about our artisan guilds, purity stamps, delivery, and payments.'}
         </p>
       </div>
 
       {/* Accordion */}
       <div className="space-y-3">
-        {FAQS.map((faq, idx) => {
+        {visibleFaqs.map((faq, idx) => {
           const isOpen = openIdx === idx;
           return (
             <div
@@ -97,3 +100,4 @@ export const FAQPage: React.FC = () => {
     </div>
   );
 };
+

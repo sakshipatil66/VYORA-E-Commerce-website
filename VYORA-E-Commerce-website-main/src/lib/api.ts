@@ -1,6 +1,7 @@
-
+﻿
 import {
   Address,
+  AdminAuditLogsResponse,
   CartItem,
   Coupon,
   Order,
@@ -82,6 +83,60 @@ export interface HomeBanner {
   active: boolean;
 }
 
+
+export interface ContactInquiry {
+  id: string;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  status: string;
+  createdAt: string;
+}
+export interface StoreCmsContent {
+  about: {
+    eyebrow: string;
+    title: string;
+    description: string;
+    promiseTitle: string;
+    promiseDescription: string;
+  };
+  contact: {
+    eyebrow: string;
+    title: string;
+    description: string;
+    email: string;
+    hours: string;
+    location: string;
+    conciergeTitle: string;
+    conciergeDescription: string;
+  };
+  faq: {
+    eyebrow: string;
+    title: string;
+    description: string;
+    items: { category: string; question: string; answer: string }[];
+  };
+  policies: {
+    shipping: { title: string; summary: string; body: string };
+    returns: { title: string; summary: string; body: string };
+    privacy: { title: string; summary: string; body: string };
+    terms: { title: string; summary: string; body: string };
+  };
+  footer: {
+    description: string;
+    email: string;
+    newsletterTitle: string;
+    newsletterDescription: string;
+  };
+  seo: {
+    title: string;
+    description: string;
+    keywords: string;
+    ogTitle: string;
+    ogDescription: string;
+  };
+}
 export const api = {
   // Store APIs
   products: () => request<Product[]>('/products'),
@@ -102,6 +157,21 @@ export const api = {
       body: JSON.stringify({ banners })
     }),
 
+  // Storefront CMS content
+  cmsContent: () =>
+    request<{ content: StoreCmsContent }>('/content/settings'),
+
+  // Admin CMS content management
+  saveCmsContent: (content: StoreCmsContent) =>
+    request<{ content: StoreCmsContent }>('/admin/content/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ content })
+    }),
+  submitContactInquiry: (data: { name: string; email: string; subject: string; message: string }) =>
+    request<{ success: boolean; inquiryId: string }>('/contact/inquiries', json(data)),
+
+  adminContactInquiries: () =>
+    request<{ inquiries: ContactInquiry[] }>('/admin/contact-inquiries'),
   // Authentication
   me: () => request<{ user: User }>('/auth/me'),
 
@@ -204,5 +274,27 @@ export const api = {
 
   // Admin coupon management
   addCoupon: (coupon: Coupon) =>
-    request<{ coupon: Coupon }>('/admin/coupons', json(coupon))
+    request<{ coupon: Coupon }>('/admin/coupons', json(coupon)),
+  // Admin activity log
+  adminAuditLogs: (params: {
+    page?: number;
+    pageSize?: number;
+    action?: string;
+    entity?: string;
+    actorId?: string;
+  } = {}) => {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== '') {
+        query.set(key, String(value));
+      }
+    });
+    const queryString = query.toString();
+    return request<AdminAuditLogsResponse>(
+      `/admin/audit-logs${queryString ? `?${queryString}` : ''}`
+    );
+  }
 };
+
+
+

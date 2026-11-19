@@ -179,3 +179,25 @@ export interface AdminCustomer {
   totalOrders: number;
   totalSpent: number;
 }
+export interface AdminAuditLog {
+  id: string;
+  actorId: string;
+  actorName: string;
+  actorRole: string;
+  action: string;
+  targetEntity: string;
+  targetId: string;
+  metadata: Record<string, unknown>;
+  ipAddress: string;
+  createdAt: string;
+}
+
+export interface AdminAuditLogsResponse {
+  logs: AdminAuditLog[];
+  total: number;
+  page: number;
+  pageSize: number;
+  actors: { id: string; name: string }[];
+  actions: string[];
+  entities: string[];
+}

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Mail, MapPin, Clock, Send, CheckCircle2, Truck } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { formatLocationLabel } from '../../data/locations';
+import { api } from '../../lib/api';
 
 export const ContactPage: React.FC = () => {
   const { addToast, selectedLocation, requestLocationPicker } = useStore();
@@ -10,12 +11,27 @@ export const ContactPage: React.FC = () => {
   const [subject, setSubject] = useState('Product / Order Assistance');
   const [message, setMessage] = useState('');
   const [isSent, setIsSent] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email || !message) return;
-    setIsSent(true);
-    addToast('Your inquiry has been submitted to the Vyora Concierge.');
+    if (!name.trim() || !email.trim() || !message.trim() || isSubmitting) return;
+
+    setIsSubmitting(true);
+    try {
+      await api.submitContactInquiry({
+        name: name.trim(),
+        email: email.trim(),
+        subject,
+        message: message.trim()
+      });
+      setIsSent(true);
+      addToast('Your inquiry has been saved for the Vyora Concierge.');
+    } catch (error) {
+      addToast(`Could not submit inquiry: ${(error as Error).message}`, 'warning');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -71,7 +87,7 @@ export const ContactPage: React.FC = () => {
                     onClick={requestLocationPicker}
                     className="text-[11px] font-semibold text-[#7A1438] hover:underline mt-1 cursor-pointer"
                   >
-                    Change Delivery Location →
+                    Change Delivery Location â†’
                   </button>
                 </div>
               </div>
@@ -96,7 +112,7 @@ export const ContactPage: React.FC = () => {
                 <div>
                   <h4 className="font-bold text-neutral-900">Concierge Hours</h4>
                   <p className="text-neutral-600 mt-0.5">
-                    Monday – Sunday · 9:00 AM to 9:00 PM IST
+                    Monday â€“ Sunday Â· 9:00 AM to 9:00 PM IST
                   </p>
                 </div>
               </div>
@@ -202,10 +218,11 @@ export const ContactPage: React.FC = () => {
 
               <button
                 type="submit"
-                className="py-3 px-6 text-xs font-semibold text-white bg-[#5B112B] hover:bg-[#430C1F] rounded-md transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
+                disabled={isSubmitting}
+                className="py-3 px-6 text-xs font-semibold text-white bg-[#5B112B] hover:bg-[#430C1F] rounded-md transition-colors flex items-center gap-2 shadow-xs cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>Submit Inquiry</span>
+                <span>{isSubmitting ? 'Submitting...' : 'Submit Inquiry'}</span>
               </button>
             </form>
           )}
@@ -214,3 +231,4 @@ export const ContactPage: React.FC = () => {
     </div>
   );
 };
+
