@@ -57,7 +57,7 @@ console.info('[startup] API environment diagnostics', {
     envFileValues.RAZORPAY_KEY_SECRET.trim() !== process.env.RAZORPAY_KEY_SECRET.trim()
   )
 });
-const port = Number(process.env.API_PORT) || 3001;
+const port = Number(process.env.PORT || process.env.API_PORT) || 3001;
 const sessionLifetimeMs = 30 * 24 * 60 * 60 * 1000;
 const sessionCookie = 'vyora_session';
 const databasePath = process.env.DATABASE_PATH || join(process.cwd(), 'data', 'vyora.sqlite');
@@ -1353,12 +1353,13 @@ app.use((error: ApiError, _req: Request, res: Response, _next: NextFunction) => 
     error: status >= 500 && !error.expose ? 'A server error occurred' : error.message
   });
 });
-
 database.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(Date.now());
-app.listen(port, '127.0.0.1', () => {
-  console.log(`VYORA API listening on http://127.0.0.1:${port}`);
-});
 
+const host = '0.0.0.0';
+
+app.listen(port, host, () => {
+  console.log(`VYORA API listening on http://${host}:${port}`);
+});
 
 
 
