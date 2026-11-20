@@ -7,3 +7,8 @@ data/
 *.log
 .env*
 !.env.example
+
+!src/data/
+src/data/*
+!src/data/categories.ts
+!src/data/locations.ts
