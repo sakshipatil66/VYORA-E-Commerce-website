@@ -559,6 +559,28 @@ if (configuredAdminEmail) {
     .run(configuredAdminEmail);
 }
 
+// Phase 6: Admin Activity Log
+database.exec(`
+  CREATE TABLE IF NOT EXISTS audit_logs (
+    id TEXT PRIMARY KEY,
+    actor_id TEXT NOT NULL,
+    actor_name TEXT NOT NULL,
+    actor_role TEXT NOT NULL,
+    action TEXT NOT NULL,
+    target_entity TEXT NOT NULL,
+    target_id TEXT NOT NULL DEFAULT '',
+    metadata_json TEXT NOT NULL DEFAULT '{}',
+    ip_address TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at
+  ON audit_logs(created_at DESC);
+
+  CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_id
+  ON audit_logs(actor_id);
+`);
+
 app.use(express.json({ limit: '1mb' }));
 
 type AuthenticatedRequest = Request & { user?: User };
@@ -888,6 +910,151 @@ const authenticate = (handler: (req: AuthenticatedRequest, res: Response) => unk
       next(error);
     }
   }];
+
+const recordAdminActivity = (
+  req: AuthenticatedRequest,
+  action: string,
+  targetEntity: string,
+  targetId = '',
+  metadata: Record<string, unknown> = {}
+) => {
+  const actor = req.user;
+
+  if (!actor || actor.role !== 'admin') return;
+
+  database.prepare(`
+    INSERT INTO audit_logs (
+      id, actor_id, actor_name, actor_role,
+      action, target_entity, target_id, metadata_json
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    randomUUID(),
+    actor.id,
+    actor.name || 'Administrator',
+    actor.role,
+    action,
+    targetEntity,
+    targetId,
+    JSON.stringify(metadata)
+  );
+};
+
+app.get('/api/admin/audit-logs', ...authenticate((req, res) => {
+  if (req.user!.role !== 'admin') {
+    fail(403, 'Administrator access is required');
+  }
+
+  const page = Math.max(1, Number.parseInt(String(req.query.page || '1'), 10) || 1);
+  const pageSize = Math.min(
+    100,
+    Math.max(1, Number.parseInt(String(req.query.pageSize || '20'), 10) || 20)
+  );
+
+  const action = String(req.query.action || '').trim();
+  const entity = String(req.query.entity || '').trim();
+  const actorId = String(req.query.actorId || '').trim();
+
+  const conditions: string[] = [];
+  const params: (string | number)[] = [];
+
+  if (action) {
+    conditions.push('action = ?');
+    params.push(action);
+  }
+
+  if (entity) {
+    conditions.push('target_entity = ?');
+    params.push(entity);
+  }
+
+  if (actorId) {
+    conditions.push('actor_id = ?');
+    params.push(actorId);
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  const totalRow = database
+    .prepare(`SELECT COUNT(*) AS total FROM audit_logs ${where}`)
+    .get(...params) as { total: number };
+
+  const rows = database
+    .prepare(`
+      SELECT id, actor_id, actor_name, actor_role, action,
+             target_entity, target_id, metadata_json, created_at
+      FROM audit_logs
+      ${where}
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `)
+    .all(...params, pageSize, (page - 1) * pageSize) as Array<{
+      id: string;
+      actor_id: string;
+      actor_name: string;
+      actor_role: string;
+      action: string;
+      target_entity: string;
+      target_id: string;
+      metadata_json: string;
+      created_at: string;
+    }>;
+
+  const logs = rows.map((row) => {
+    let metadata: Record<string, unknown> = {};
+
+    try {
+      const parsed: unknown = JSON.parse(row.metadata_json || '{}');
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        metadata = parsed as Record<string, unknown>;
+      }
+    } catch {
+      metadata = {};
+    }
+
+    return {
+      id: row.id,
+      actorId: row.actor_id,
+      actorName: row.actor_name,
+      actorRole: row.actor_role,
+      action: row.action,
+      targetEntity: row.target_entity,
+      targetId: row.target_id,
+      metadata,
+      ipAddress: '',
+      createdAt: row.created_at
+    };
+  });
+
+  const actors = database.prepare(`
+    SELECT DISTINCT actor_id AS id, actor_name AS name
+    FROM audit_logs
+    ORDER BY actor_name
+  `).all() as Array<{ id: string; name: string }>;
+
+  const actions = (
+    database.prepare(`
+      SELECT DISTINCT action FROM audit_logs ORDER BY action
+    `).all() as Array<{ action: string }>
+  ).map((row) => row.action);
+
+  const entities = (
+    database.prepare(`
+      SELECT DISTINCT target_entity FROM audit_logs ORDER BY target_entity
+    `).all() as Array<{ target_entity: string }>
+  ).map((row) => row.target_entity);
+
+  res.json({
+    logs,
+    total: Number(totalRow.total || 0),
+    page,
+    pageSize,
+    actors,
+    actions,
+    entities
+  });
+}));
+
 
 const asyncRoute = (handler: (req: Request, res: Response) => Promise<unknown>) =>
   (req: Request, res: Response, next: NextFunction) => {
@@ -2256,7 +2423,10 @@ app.get('/api/admin/analytics', ...authenticate((req, res) => {
   const cancelledInPeriod = periodOrders.filter(({ order }) => order.status === 'cancelled');
 
   const totalRevenue = activeOrders.reduce((sum, { order }) => sum + order.total, 0);
-  const grossRevenue = activeOrders.reduce((sum, { order }) => sum + order.subtotal, 0);
+  const grossRevenue = activeOrders.reduce(
+    (sum, { order }) => sum + order.subtotal + order.discount,
+    0
+  );
   const cancelledRevenue = cancelledInPeriod.reduce((sum, { order }) => sum + order.total, 0);
   const totalDiscounts = activeOrders.reduce((sum, { order }) => sum + order.discount + order.couponDiscount, 0);
 
@@ -2657,6 +2827,16 @@ app.put('/api/admin/products/:productId', ...authenticate((req, res) => {
   database.exec('BEGIN IMMEDIATE');
   try {
     saveProduct(updated, false);
+    recordAdminActivity(
+  req,
+  'product.updated',
+  'product',
+  updated.id,
+  {
+    productName: updated.name,
+    category: updated.category
+  }
+);
     const delta = updated.stockQuantity - Number(existingRow.stock);
     if (delta !== 0) {
       recordInventoryLog({
@@ -2695,6 +2875,10 @@ app.patch('/api/admin/products/:productId/visibility', ...authenticate((req, res
   product.updatedAt = nowIso;
   database.prepare('UPDATE products SET is_active = ?, updated_at = ?, data_json = ? WHERE id = ?')
     .run(req.body.isActive ? 1 : 0, nowIso, JSON.stringify(product), req.params.productId);
+    recordAdminActivity(req, 'product.visibility_changed', 'product', product.id, {
+  productName: product.name,
+  isActive: product.isActive
+});
   res.json({ product });
 }));
 

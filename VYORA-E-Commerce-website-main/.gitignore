@@ -12,3 +12,5 @@ data/
 src/data/*
 !src/data/categories.ts
 !src/data/locations.ts
+!src/data/products.ts
+!src/data/coupons.ts
