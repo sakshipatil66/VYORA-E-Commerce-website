@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   CircleAlert,
   Clock,
+  Download,
   Eye,
   Layers,
   Package,
@@ -44,6 +45,11 @@ interface AdminOverviewProps {
   onNavigateOrders: (statusFilter?: string) => void;
   onNavigateProducts: (stockFilter?: 'all' | 'low' | 'out') => void;
   onInspectOrder: (order: Order) => void;
+  onOpenTab?: (tab: 'reports' | 'content' | 'media' | 'contact') => void;
+  allowedQuickTabs?: ('reports' | 'content' | 'media' | 'contact')[];
+  canAddProduct?: boolean;
+  canReviewOrders?: boolean;
+  canViewLowStock?: boolean;
 }
 
 const money = (amount: number) =>
@@ -61,13 +67,20 @@ const dateLabel = (value?: string) => {
 };
 
 const rangeOptions: { id: AnalyticsRange; label: string }[] = [
+  { id: 'today', label: 'Today' },
+  { id: 'yesterday', label: 'Yesterday' },
   { id: '7d', label: '7 Days' },
   { id: '30d', label: '30 Days' },
   { id: '90d', label: '90 Days' },
+  { id: 'thisMonth', label: 'This Month' },
+  { id: 'previousMonth', label: 'Previous Month' },
+  { id: 'thisYear', label: 'This Year' },
   { id: '1y', label: '1 Year' },
   { id: 'all', label: 'All Time' },
   { id: 'custom', label: 'Custom' }
 ];
+
+const csvCell = (value: string | number) => `"${String(value).replace(/"/g, '""')}"`;
 
 const granularityOptions: { id: AnalyticsGranularity; label: string }[] = [
   { id: 'daily', label: 'Daily' },
@@ -112,7 +125,12 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
   onStartNewProduct,
   onNavigateOrders,
   onNavigateProducts,
-  onInspectOrder
+  onInspectOrder,
+  onOpenTab,
+  allowedQuickTabs = [],
+  canAddProduct = true,
+  canReviewOrders = true,
+  canViewLowStock = true
 }) => {
   const kpis = analytics?.kpis;
   const comparison = analytics?.comparison;
@@ -127,6 +145,38 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
   const totalSeriesRevenue = series.reduce((sum, bucket) => sum + bucket.revenue, 0);
   const totalSeriesOrders = series.reduce((sum, bucket) => sum + bucket.orders, 0);
   const maxCategoryRevenue = Math.max(1, ...categorySales.map((cat) => cat.revenue));
+
+  const exportReport = () => {
+    if (!analytics) return;
+    const rows: (string | number)[][] = [
+      ['VYORA Analytics Report'],
+      ['Range', range],
+      ['Start date', analytics.startDate || ''],
+      ['End date', analytics.endDate || ''],
+      [],
+      ['Metric', 'Value'],
+      ['Net revenue', analytics.kpis.totalRevenue],
+      ['Gross revenue', analytics.kpis.grossRevenue],
+      ['Discounts', analytics.kpis.totalDiscounts],
+      ['Orders', analytics.kpis.totalOrders],
+      ['Customers', analytics.kpis.totalCustomers],
+      ['Products', analytics.kpis.totalProducts],
+      ['Average order value', analytics.kpis.avgOrderValue],
+      [],
+      ['Revenue trend', 'Revenue', 'Orders', 'Cancelled orders'],
+      ...analytics.revenueSeries.map((item) => [item.label, item.revenue, item.orders, item.cancelled]),
+      [],
+      ['Category', 'Revenue', 'Units sold', 'Orders'],
+      ...analytics.categorySales.map((item) => [item.label, item.revenue, item.unitsSold, item.ordersCount])
+    ];
+    const csv = rows.map((row) => row.map(csvCell).join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `vyora-analytics-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
 
   const pipelineTiles = [
     {
@@ -201,23 +251,25 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
               Live revenue, order fulfillment pipeline, category performance, and inventory health from your database.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button
+          <div className="flex flex-wrap gap-2 sm:max-w-[580px] sm:justify-end">
+            {canAddProduct && <button
               type="button"
               onClick={onStartNewProduct}
               className="inline-flex items-center gap-2 rounded-full bg-[#d7bd7d] px-4 py-2.5 text-xs font-bold text-[#3b1119] hover:bg-[#e6d5aa]"
             >
               <Plus className="h-3.5 w-3.5" />
               Add product
-            </button>
-            <button
+            </button>}
+            {canReviewOrders && <button
               type="button"
               onClick={() => onNavigateOrders('all')}
               className="inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-2.5 text-xs font-semibold text-white hover:bg-white/10"
             >
               Review orders
               <ArrowRight className="h-3.5 w-3.5" />
-            </button>
+            </button>}
+            {canViewLowStock && <button type="button" onClick={() => onNavigateProducts('low')} className="rounded-full border border-white/20 px-3 py-2 text-[10px] font-semibold text-white hover:bg-white/10">Low stock</button>}
+            {allowedQuickTabs.map((target) => <button key={target} type="button" onClick={() => onOpenTab?.(target)} className="rounded-full border border-white/20 px-3 py-2 text-[10px] font-semibold text-white hover:bg-white/10">{{ reports:'Reports',content:'Story Builder',media:'Upload media',contact:'Contact inquiries' }[target]}</button>)}
           </div>
         </div>
       </section>
@@ -283,6 +335,14 @@ export const AdminOverview: React.FC<AdminOverviewProps> = ({
                 </button>
               ))}
             </div>
+            <button
+              type="button"
+              disabled={!analytics}
+              onClick={exportReport}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[#e8dcd1] bg-white px-3 py-2 text-[10px] font-semibold text-[#65443d] transition hover:bg-[#f8f2ec] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Download className="h-3.5 w-3.5" /> Export CSV
+            </button>
           </div>
         </div>
       </section>

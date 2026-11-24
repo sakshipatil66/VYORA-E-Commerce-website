@@ -234,7 +234,9 @@ export type StaffRole =
   | 'admin'
   | 'order_manager'
   | 'inventory_manager'
-  | 'customer_support';
+  | 'customer_support'
+  | 'content_manager'
+  | 'analyst';
 
 export type CmsPermission =
   | 'view_overview'
@@ -255,7 +257,11 @@ export type CmsPermission =
   | 'manage_reviews'
   | 'manage_banners'
   | 'manage_seo'
-  | 'manage_campaigns';
+  | 'manage_campaigns'
+  | 'manage_cms'
+  | 'manage_media'
+  | 'manage_contact'
+  | 'manage_settings';
 
 export interface User {
   id: string;
@@ -274,7 +280,7 @@ export interface User {
   updatedAt?: string;
 }
 
-export type AnalyticsRange = '7d' | '30d' | '90d' | '1y' | 'all' | 'custom';
+export type AnalyticsRange = 'today' | 'yesterday' | '7d' | '30d' | '90d' | 'thisMonth' | 'previousMonth' | 'thisYear' | '1y' | 'all' | 'custom';
 export type AnalyticsGranularity = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
 export interface AdminAnalyticsData {
@@ -727,6 +733,7 @@ export interface AdminReportsData {
 export type NotificationType =
   | 'new_order'
   | 'new_customer'
+  | 'contact_inquiry'
   | 'low_stock'
   | 'out_of_stock'
   | 'payment_failed'
@@ -778,6 +785,7 @@ export interface AuditLogEntry {
   action: string;
   targetEntity: string;
   targetId: string;
+  result: 'success' | 'failure';
   metadata: Record<string, unknown>;
   ipAddress: string;
   createdAt: string;
@@ -955,4 +963,3 @@ export interface AdminCampaignSummary {
     totalRedemptions: number;
   };
 }
-

@@ -8,6 +8,11 @@ import {
   AdminRefundSummary,
   AdminReturnSummary,
   AdminShipmentSummary,
+  AdminNotificationSummary,
+  AdminAuditLogResponse,
+  AuditLogEntry,
+  CmsPermission,
+  StaffMember,
   AnalyticsGranularity,
   AnalyticsRange,
   CartItem,
@@ -28,6 +33,123 @@ import {
   User
 } from '../types';
 
+export interface HomeBanner {
+  id: string;
+  kicker: string;
+  edition: string;
+  title: string;
+  subtitle: string;
+  image: string;
+  imageAlt?: string;
+  category: string;
+  ctaText: string;
+  secondaryCta: string;
+  secondaryCategory: string;
+  active: boolean;
+  startsAt?: string;
+  endsAt?: string;
+}
+
+export interface BrandStoryMilestone {
+  id: string;
+  year: string;
+  title: string;
+  description: string;
+  image: string;
+  imageAlt?: string;
+}
+
+export interface BrandStoryContent {
+  title: string;
+  introduction: string;
+  mission: string;
+  vision: string;
+  values: string[];
+  milestones: BrandStoryMilestone[];
+}
+
+export interface AdminBrandStory {
+  draft: BrandStoryContent;
+  published: BrandStoryContent | null;
+  updatedAt: string | null;
+}
+
+export interface StoreCmsContent {
+  about: { eyebrow: string; title: string; description: string; promiseTitle: string; promiseDescription: string };
+  contact: { eyebrow: string; title: string; description: string; email: string; hours: string; location: string; conciergeTitle: string; conciergeDescription: string };
+  faq: { eyebrow: string; title: string; description: string; items: { category: string; question: string; answer: string }[] };
+  policies: Record<'shipping' | 'returns' | 'privacy' | 'terms', { title: string; summary: string; body: string }>;
+  footer: { description: string; email: string; newsletterTitle: string; newsletterDescription: string };
+  seo: { title: string; description: string; keywords: string; ogTitle: string; ogDescription: string };
+  storySections: StorefrontStorySection[];
+}
+
+export interface AdminStoreCmsContent {
+  draft: StoreCmsContent;
+  published: StoreCmsContent | null;
+  updatedAt: string | null;
+}
+
+export interface ContactInquiry {
+  id: string;
+  name: string;
+  email: string;
+  subject: string;
+  message: string;
+  status: string;
+  createdAt: string;
+}
+
+export type StorefrontStorySectionKind = 'featured-collections' | 'category-highlights' | 'editorial' | 'promotion' | 'featured-products' | 'testimonial';
+export interface StorefrontStorySection {
+  id: string;
+  kind: StorefrontStorySectionKind;
+  eyebrow: string;
+  heading: string;
+  description: string;
+  image: string;
+  imageAlt?: string;
+  ctaLabel: string;
+  category: string;
+  active: boolean;
+}
+
+export interface AdminMediaAsset {
+  id: string;
+  filename: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  width: number;
+  height: number;
+  altText: string;
+  url: string;
+  createdAt: string;
+  updatedAt: string;
+  usage: string[];
+}
+
+const uploadMediaFile = (path: string, file: File, onProgress?: (progress: number) => void): Promise<{ asset: AdminMediaAsset }> => new Promise((resolve, reject) => {
+  const xhr = new XMLHttpRequest();
+  xhr.open(path.endsWith('/replace') ? 'PUT' : 'POST', path);
+  xhr.withCredentials = true;
+  const extension = file.name.split('.').pop()?.toLowerCase() || '';
+  const fallbackTypes: Record<string, string> = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', avif: 'image/avif' };
+  xhr.setRequestHeader('Content-Type', file.type || fallbackTypes[extension] || 'application/octet-stream');
+  xhr.setRequestHeader('X-Upload-Filename', encodeURIComponent(file.name));
+  xhr.upload.onprogress = (event) => {
+    if (event.lengthComputable) onProgress?.(Math.round((event.loaded / event.total) * 100));
+  };
+  xhr.onerror = () => reject(new Error('Image upload failed. Check your connection and try again.'));
+  xhr.onload = () => {
+    let payload: { asset?: AdminMediaAsset; error?: string } = {};
+    try { payload = JSON.parse(xhr.responseText) as typeof payload; } catch { /* handled below */ }
+    if (xhr.status < 200 || xhr.status >= 300 || !payload.asset) reject(new Error(payload.error || `Upload failed (${xhr.status})`));
+    else resolve({ asset: payload.asset });
+  };
+  xhr.send(file);
+});
+
 const request = async <T>(path: string, init: RequestInit = {}): Promise<T> => {
   const response = await fetch(`/api${path}`, {
     ...init,
@@ -46,6 +168,28 @@ const json = (body: unknown): RequestInit => ({ method: 'POST', body: JSON.strin
 
 export const api = {
   products: () => request<Product[]>('/products'),
+  adminMedia: () => request<{ assets: AdminMediaAsset[] }>('/admin/media'),
+  uploadMedia: (file: File, onProgress?: (progress: number) => void) => uploadMediaFile('/api/admin/media', file, onProgress),
+  replaceMedia: (id: string, file: File, onProgress?: (progress: number) => void) => uploadMediaFile(`/api/admin/media/${encodeURIComponent(id)}/replace`, file, onProgress),
+  updateMediaAlt: (id: string, altText: string) => request<{ asset: AdminMediaAsset }>(`/admin/media/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify({ altText }) }),
+  deleteMedia: (id: string) => request<{ success: boolean }>(`/admin/media/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  homeBanners: () => request<{ banners: HomeBanner[] }>('/content/home-banners'),
+  saveHomeBanners: (banners: HomeBanner[]) => request<{ banners: HomeBanner[] }>('/admin/content/home-banners', {
+    method: 'PUT', body: JSON.stringify({ banners })
+  }),
+  publicBrandStory: () => request<{ story: BrandStoryContent | null }>('/content/brand-story'),
+  adminBrandStory: () => request<AdminBrandStory>('/admin/content/brand-story'),
+  saveBrandStory: (story: BrandStoryContent, publish = false) => request<AdminBrandStory>('/admin/content/brand-story', {
+    method: 'PUT', body: JSON.stringify({ story, publish })
+  }),
+  submitContactInquiry: (data: { name: string; email: string; subject: string; message: string }) =>
+    request<{ success: boolean; inquiryId: string }>('/contact/inquiries', json(data)),
+  adminContactInquiries: () => request<{ inquiries: ContactInquiry[] }>('/admin/contact-inquiries'),
+  cmsContent: () => request<{ content: StoreCmsContent }>('/content/settings'),
+  adminCmsContent: () => request<AdminStoreCmsContent>('/admin/content/settings'),
+  saveCmsContent: (content: StoreCmsContent, publish = false) => request<{ content: StoreCmsContent; draft: StoreCmsContent; published: StoreCmsContent | null; updatedAt: string | null }>('/admin/content/settings', {
+    method: 'PUT', body: JSON.stringify({ content, publish })
+  }),
   categories: () => request<{ categories: StoreCategory[] }>('/categories'),
   coupons: () => request<{ coupons: Coupon[] }>('/coupons'),
   validateCoupon: (code: string, items: { productId: string; quantity: number }[]) =>
@@ -258,6 +402,18 @@ export const api = {
     });
     return request<AdminAnalyticsData>(`/admin/analytics?${query.toString()}`);
   },
+  adminStaff: () => request<{ staff: StaffMember[]; roles: string[]; permissions: CmsPermission[] }>('/admin/staff'),
+  createAdminStaff: (data: { name: string; email: string; phone?: string; password: string; staffRole: StaffMember['staffRole'] }) =>
+    request<{ staff: StaffMember }>('/admin/staff', json(data)),
+  updateAdminStaff: (id: string, data: Partial<Pick<StaffMember, 'name' | 'email' | 'phone' | 'staffRole' | 'permissions' | 'isActive'>>) =>
+    request<{ staff: StaffMember }>(`/admin/staff/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  adminNotifications: () => request<AdminNotificationSummary>('/admin/notifications'),
+  markAdminNotificationRead: (id: string) => request<{ success: boolean }>(`/admin/notifications/${encodeURIComponent(id)}/read`, { method: 'PATCH', body: JSON.stringify({}) }),
+  markAllAdminNotificationsRead: () => request<{ success: boolean }>('/admin/notifications/read-all', json({})),
+  adminAuditLogs: (page = 1, pageSize = 30) => request<AdminAuditLogResponse>(`/admin/audit-logs?page=${page}&pageSize=${pageSize}`),
+  adminSearch: (query: string) => request<{ results: { type: string; id: string; label: string; detail?: string; targetTab: string }[] }>(`/admin/search?q=${encodeURIComponent(query)}`),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ success: boolean }>('/auth/password', json({ currentPassword, newPassword })),
   addCategory: (category: StoreCategory) =>
     request<{ category: StoreCategory }>('/admin/categories', json(category)),
   updateCategory: (category: StoreCategory) =>

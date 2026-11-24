@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, HelpCircle } from 'lucide-react';
+import { useCmsContent } from '../../hooks/useCmsContent';
 
 interface FAQItem {
   question: string;
@@ -37,6 +38,8 @@ const FAQS: FAQItem[] = [
 
 export const FAQPage: React.FC = () => {
   const [openIdx, setOpenIdx] = useState<number | null>(0);
+  const cmsContent = useCmsContent();
+  const faqItems = cmsContent?.faq.items.length ? cmsContent.faq.items : FAQS;
 
   const toggle = (idx: number) => {
     setOpenIdx(openIdx === idx ? null : idx);
@@ -49,19 +52,19 @@ export const FAQPage: React.FC = () => {
       <div className="text-center max-w-2xl mx-auto mb-10">
         <div className="flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-widest text-[#7A1438]">
           <HelpCircle className="w-4 h-4" />
-          <span>Knowledge Sanctuary</span>
+          <span>{cmsContent?.faq.eyebrow || 'Knowledge Sanctuary'}</span>
         </div>
         <h1 className="font-serif text-3xl font-bold text-neutral-900 mt-1">
-          Frequently Answered Questions
+          {cmsContent?.faq.title || 'Frequently Answered Questions'}
         </h1>
         <p className="text-xs text-neutral-500 mt-2">
-          Everything you need to know about our artisan guilds, purity stamps, delivery, and payments.
+          {cmsContent?.faq.description || 'Everything you need to know about our artisan guilds, purity stamps, delivery, and payments.'}
         </p>
       </div>
 
       {/* Accordion */}
       <div className="space-y-3">
-        {FAQS.map((faq, idx) => {
+        {faqItems.map((faq, idx) => {
           const isOpen = openIdx === idx;
           return (
             <div

@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Sparkles, ArrowRight, Check, Copy } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
+import { useCmsContent } from '../../hooks/useCmsContent';
 
 export const NewsletterSection: React.FC = () => {
+  const cmsContent = useCmsContent();
   const { applyCoupon, addToast, setActivePage } = useStore();
   const [email, setEmail] = useState('');
   const [joined, setJoined] = useState(false);
@@ -42,7 +44,7 @@ export const NewsletterSection: React.FC = () => {
           <div className="lg:col-span-7 space-y-3">
             <div className="flex items-center gap-2 text-[11px] sm:text-xs font-semibold uppercase tracking-[0.22em] text-[#7A1438]">
               <Sparkles className="w-3.5 h-3.5 text-[#B8860B]" />
-              <span>The Vyora Inner Circle</span>
+              <span>{cmsContent?.footer.newsletterTitle || 'The Vyora Inner Circle'}</span>
               <span aria-hidden="true">·</span>
               <span>Private Previews & Privileges</span>
             </div>
@@ -52,7 +54,7 @@ export const NewsletterSection: React.FC = () => {
             </h2>
 
             <p className="text-xs sm:text-sm text-[#5C493E] leading-relaxed max-w-xl">
-              Join our connoisseur dispatch for early access to seasonal Banarasi weaves, Jaipur jewellery drops, limited acoustic editions, and festive gifting privileges.
+              {cmsContent?.footer.newsletterDescription || 'Join our connoisseur dispatch for early access to seasonal Banarasi weaves, Jaipur jewellery drops, limited acoustic editions, and festive gifting privileges.'}
             </p>
           </div>
 

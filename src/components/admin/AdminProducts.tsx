@@ -3,6 +3,7 @@ import {
   Archive,
   ChevronLeft,
   ChevronRight,
+  Download,
   Eye,
   EyeOff,
   Package,
@@ -141,6 +142,28 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
     setPage(1);
   };
 
+  const exportFilteredProducts = () => {
+    const headers = ['Product ID', 'Name', 'SKU', 'Brand', 'Category', 'Subcategory', 'Price', 'Original Price', 'Stock', 'Low Stock Threshold', 'Active', 'Updated At'];
+    const escapeCsv = (value: string | number | boolean | undefined) => {
+      const text = value === undefined ? '' : String(value);
+      return `"${text.replace(/"/g, '""')}"`;
+    };
+    const rows = filteredProducts.map((product) => [
+      product.id, product.name, product.sku || '', product.brand, categoryMap.get(product.category) || product.category,
+      product.subCategory, product.discountPrice, product.originalPrice, product.stockQuantity,
+      product.lowStockThreshold ?? 10, product.isActive !== false, product.updatedAt || ''
+    ].map(escapeCsv).join(','));
+    const csv = `\uFEFF${[headers.map(escapeCsv).join(','), ...rows].join('\r\n')}`;
+    const blobUrl = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = `vyora-products-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(blobUrl);
+  };
+
   const handleToggle = async (product: Product) => {
     const nextActive = product.isActive === false;
     setTogglingId(product.id);
@@ -182,6 +205,16 @@ export const AdminProducts: React.FC<AdminProductsProps> = ({
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={exportFilteredProducts}
+              disabled={!filteredProducts.length}
+              title="Export all products matching the current filters"
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-[#e7dbd0] bg-white px-3 py-2.5 text-xs font-semibold text-[#6b5a52] hover:bg-[#faf4ef] disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export {filteredProducts.length ? `(${filteredProducts.length})` : ''}
+            </button>
             {hasFilters && (
               <button
                 type="button"

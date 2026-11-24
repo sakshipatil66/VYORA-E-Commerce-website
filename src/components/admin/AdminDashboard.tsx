@@ -1,10 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import {
   BadgePercent,
+  BarChart3,
+  Activity,
+  Mail,
+  BookOpen,
   Boxes,
   Check,
   ExternalLink,
   Flower2,
+  ImagePlus,
   Layers,
   LayoutDashboard,
   LogOut,
@@ -21,6 +26,7 @@ import {
   Truck,
   Undo2,
   Users,
+  UserCog,
   Wallet,
   X
 } from 'lucide-react';
@@ -38,6 +44,7 @@ import {
   AnalyticsGranularity,
   AnalyticsRange,
   Coupon,
+  CmsPermission,
   InventoryAdjustmentReason,
   Order,
   OrderShipmentInfo,
@@ -59,6 +66,14 @@ import { AdminProducts } from './AdminProducts';
 import { AdminRefunds } from './AdminRefunds';
 import { AdminReturns } from './AdminReturns';
 import { AdminShipping } from './AdminShipping';
+import { AdminStoryBuilder } from './AdminStoryBuilder';
+import { AdminMediaLibrary } from './AdminMediaLibrary';
+import { AdminCmsContent } from './AdminCmsContent';
+import { AdminReports } from './AdminReports';
+import { AdminOperations } from './AdminOperations';
+import { AdminNotificationButton, AdminGlobalSearch } from './AdminHeaderTools';
+import { AdminContactInquiries } from './AdminContactInquiries';
+import { AdminSecuritySettings } from './AdminSecuritySettings';
 
 type AdminTab =
   | 'overview'
@@ -70,7 +85,15 @@ type AdminTab =
   | 'refunds'
   | 'customers'
   | 'categories'
-  | 'coupons';
+  | 'coupons'
+  | 'content'
+  | 'media'
+  | 'siteContent'
+  | 'reports'
+  | 'operations'
+  | 'activity'
+  | 'contact'
+  | 'security';
 type ProductDraft = Omit<Product, 'id'>;
 
 const createDraftSku = (categoryId: string) => {
@@ -109,6 +132,10 @@ const emptyProduct = (categoryId: string): ProductDraft => ({
 
 const tabItems: { id: AdminTab; label: string; icon: React.FC<{ className?: string }> }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { id: 'reports', label: 'Reports', icon: BarChart3 },
+  { id: 'operations', label: 'Admin operations', icon: UserCog },
+  { id: 'activity', label: 'Activity logs', icon: Activity },
+  { id: 'security', label: 'Security settings', icon: ShieldCheck },
   { id: 'products', label: 'Products', icon: Package },
   { id: 'inventory', label: 'Inventory', icon: Layers },
   { id: 'orders', label: 'Orders', icon: ShoppingBag },
@@ -117,7 +144,11 @@ const tabItems: { id: AdminTab; label: string; icon: React.FC<{ className?: stri
   { id: 'refunds', label: 'Refunds', icon: Wallet },
   { id: 'customers', label: 'Customers', icon: Users },
   { id: 'categories', label: 'Categories', icon: Boxes },
-  { id: 'coupons', label: 'Coupons', icon: BadgePercent }
+  { id: 'coupons', label: 'Coupons', icon: BadgePercent },
+  { id: 'content', label: 'Story Builder', icon: BookOpen },
+  { id: 'media', label: 'Media Library', icon: ImagePlus },
+  { id: 'siteContent', label: 'Content Manager', icon: Pencil },
+  { id: 'contact', label: 'Contact inquiries', icon: Mail }
 ];
 
 const ProductEditor: React.FC<{
@@ -387,6 +418,17 @@ export const AdminDashboard: React.FC = () => {
     addProduct, updateProduct, deleteProduct, currentUser, logout,
     setActivePage, addToast
   } = useStore();
+  const canAccess = (permission: CmsPermission) => {
+    if (currentUser?.role !== 'admin') return false;
+    if (!currentUser.staffRole || currentUser.staffRole === 'super_admin') return true;
+    return currentUser.permissions?.includes(permission) ?? false;
+  };
+  const tabPermission: Record<AdminTab, CmsPermission> = {
+    overview:'view_overview',reports:'view_reports',operations:'manage_staff',activity:'view_audit_logs',security:'view_overview',products:'manage_products',inventory:'manage_inventory',
+    orders:'manage_orders',shipping:'manage_shipping',returns:'manage_returns',refunds:'manage_refunds',customers:'manage_customers',
+    categories:'manage_categories',coupons:'manage_coupons',content:'manage_cms',media:'manage_media',siteContent:'manage_cms',contact:'manage_contact'
+  };
+  const visibleTabItems = tabItems.filter((item) => canAccess(tabPermission[item.id]));
   const [tab, setTab] = useState<AdminTab>('overview');
   const [analytics, setAnalytics] = useState<AdminAnalyticsData | null>(null);
   const [adminProducts, setAdminProducts] = useState<Product[]>(products);
@@ -443,6 +485,7 @@ export const AdminDashboard: React.FC = () => {
       endDate?: string;
     }
   ) => {
+    if (!canAccess('view_reports')) { setIsLoading(false); return; }
     if (showLoading) setIsLoading(true);
     try {
       const data = await api.adminAnalytics({
@@ -460,14 +503,15 @@ export const AdminDashboard: React.FC = () => {
   };
 
   const loadAdminCatalogAndInventory = async (showLoading = false) => {
+    if (!canAccess('manage_products') && !canAccess('manage_inventory')) { setLoadingInventory(false); return; }
     if (showLoading) setLoadingInventory(true);
     try {
       const [catalogRes, invRes] = await Promise.all([
-        api.adminProducts(),
-        api.adminInventory()
+        canAccess('manage_products') ? api.adminProducts() : Promise.resolve(null),
+        canAccess('manage_inventory') ? api.adminInventory() : Promise.resolve(null)
       ]);
-      setAdminProducts(catalogRes.products);
-      setInventoryData(invRes);
+      if (catalogRes) setAdminProducts(catalogRes.products);
+      if (invRes) setInventoryData(invRes);
     } catch (error) {
       addToast(`Could not load catalog inventory: ${(error as Error).message}`, 'warning');
     } finally {
@@ -476,15 +520,18 @@ export const AdminDashboard: React.FC = () => {
   };
 
   const loadCustomersAndCoupons = async (showLoading = false) => {
+    if (!canAccess('manage_customers') && !canAccess('manage_coupons')) { setLoadingCustomers(false); setLoadingCoupons(false); return; }
     if (showLoading) {
       setLoadingCustomers(true);
       setLoadingCoupons(true);
     }
     try {
-      const [custRes, coupRes] = await Promise.all([api.adminCustomers(), api.adminCoupons()]);
-      setCustomers(custRes.customers);
-      setCustomerStats(custRes.stats);
-      setCouponSummary(coupRes);
+      const [custRes, coupRes] = await Promise.all([
+        canAccess('manage_customers') ? api.adminCustomers() : Promise.resolve(null),
+        canAccess('manage_coupons') ? api.adminCoupons() : Promise.resolve(null)
+      ]);
+      if (custRes) { setCustomers(custRes.customers); setCustomerStats(custRes.stats); }
+      if (coupRes) setCouponSummary(coupRes);
     } catch (error) {
       addToast(`Could not load customer or coupon data: ${(error as Error).message}`, 'warning');
     } finally {
@@ -494,6 +541,7 @@ export const AdminDashboard: React.FC = () => {
   };
 
   const loadReturnsRefundsAndShipping = async (showLoading = false) => {
+    if (!canAccess('manage_returns') && !canAccess('manage_refunds') && !canAccess('manage_shipping')) { setLoadingReturns(false); setLoadingRefunds(false); setLoadingShipments(false); return; }
     if (showLoading) {
       setLoadingReturns(true);
       setLoadingRefunds(true);
@@ -501,13 +549,13 @@ export const AdminDashboard: React.FC = () => {
     }
     try {
       const [retRes, refRes, shipRes] = await Promise.all([
-        api.adminReturns(),
-        api.adminRefunds(),
-        api.adminShipments()
+        canAccess('manage_returns') ? api.adminReturns() : Promise.resolve(null),
+        canAccess('manage_refunds') ? api.adminRefunds() : Promise.resolve(null),
+        canAccess('manage_shipping') ? api.adminShipments() : Promise.resolve(null)
       ]);
-      setReturnSummary(retRes);
-      setRefundSummary(refRes);
-      setShipmentSummary(shipRes);
+      if (retRes) setReturnSummary(retRes);
+      if (refRes) setRefundSummary(refRes);
+      if (shipRes) setShipmentSummary(shipRes);
     } catch (error) {
       addToast(`Could not load returns, refunds, or shipping data: ${(error as Error).message}`, 'warning');
     } finally {
@@ -522,7 +570,7 @@ export const AdminDashboard: React.FC = () => {
     void loadAdminCatalogAndInventory(true);
     void loadCustomersAndCoupons(true);
     void loadReturnsRefundsAndShipping(true);
-    refreshOrders().catch((error: Error) => addToast(`Could not load orders: ${error.message}`, 'warning'));
+    if (canAccess('manage_orders')) refreshOrders().catch((error: Error) => addToast(`Could not load orders: ${error.message}`, 'warning'));
   }, []);
 
   useEffect(() => {
@@ -542,15 +590,15 @@ export const AdminDashboard: React.FC = () => {
       loadAdminCatalogAndInventory(false),
       loadCustomersAndCoupons(false),
       loadReturnsRefundsAndShipping(false),
-      refreshProducts().catch((error: Error) => {
+      canAccess('manage_products') ? refreshProducts().catch((error: Error) => {
         addToast(`Could not refresh storefront products: ${error.message}`, 'warning');
-      }),
-      refreshOrders().catch((error: Error) => {
+      }) : Promise.resolve(),
+      canAccess('manage_orders') ? refreshOrders().catch((error: Error) => {
         addToast(`Could not refresh orders: ${error.message}`, 'warning');
-      }),
-      refreshCoupons().catch((error: Error) => {
+      }) : Promise.resolve(),
+      canAccess('manage_coupons') ? refreshCoupons().catch((error: Error) => {
         addToast(`Could not refresh coupons: ${error.message}`, 'warning');
-      })
+      }) : Promise.resolve()
     ]);
     setIsRefreshing(false);
   };
@@ -894,7 +942,7 @@ export const AdminDashboard: React.FC = () => {
 
         <div className="mt-9 px-3 text-[9px] font-bold uppercase tracking-[.19em] text-[#a18f84]">Store workspace</div>
         <nav className="mt-3 space-y-1 overflow-y-auto pr-1">
-          {tabItems.map(({ id, label, icon: Icon }) => (
+          {visibleTabItems.map(({ id, label, icon: Icon }) => (
             <button type="button" key={id} onClick={() => chooseTab(id)}
               className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-xs font-semibold transition ${tab === id ? 'bg-[#5b112b] text-white shadow-md shadow-[#5b112b]/15' : 'text-[#71615a] hover:bg-[#f7f0eb] hover:text-[#4c1b27]'}`}>
               <Icon className="h-4 w-4" />
@@ -933,6 +981,23 @@ export const AdminDashboard: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
+            <AdminGlobalSearch user={currentUser} onSelect={(result) => {
+              const destination = result.targetTab as AdminTab;
+              if (!tabPermission[destination] || !canAccess(tabPermission[destination])) return;
+              if (result.type === 'Order') {
+                const order = orders.find((item) => item.id === result.id);
+                if (order) setOrderDetails(order);
+              }
+              if (result.type === 'Product') {
+                const product = adminProducts.find((item) => item.id === result.id);
+                if (product) { setEditingProductId(product.id); setProductModal({ ...product }); }
+              }
+              chooseTab(destination);
+            }} />
+            <AdminNotificationButton user={currentUser} onNavigate={(destination) => {
+              const next = destination as AdminTab;
+              if (tabPermission[next] && canAccess(tabPermission[next])) chooseTab(next);
+            }} />
             <button type="button" disabled={isRefreshing} onClick={() => void handleRefresh()} aria-label="Refresh dashboard data"
               className="rounded-full border border-[#e9ded5] p-2.5 text-[#755f56] transition hover:bg-[#f7f0eb] disabled:opacity-50">
               <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
@@ -949,6 +1014,33 @@ export const AdminDashboard: React.FC = () => {
         </header>
 
         <main className="mx-auto max-w-[1480px] space-y-6 px-4 py-6 sm:px-7 sm:py-8 lg:px-9">
+          {tab === 'content' && <AdminStoryBuilder />}
+          {tab === 'media' && <AdminMediaLibrary />}
+          {tab === 'siteContent' && <AdminCmsContent />}
+          {tab === 'operations' && <AdminOperations key={tab} currentUser={currentUser} initialView="staff" />}
+          {tab === 'activity' && <AdminOperations key={tab} currentUser={currentUser} initialView="activity" />}
+          {tab === 'security' && <AdminSecuritySettings />}
+          {tab === 'contact' && <AdminContactInquiries />}
+          {tab === 'reports' && (
+            <AdminReports
+              analytics={analytics}
+              orders={canAccess('manage_orders') ? orders : []}
+              products={adminProducts}
+              categories={categories}
+              loading={isLoading}
+              range={analyticsRange}
+              granularity={analyticsGranularity}
+              startDate={analyticsStartDate}
+              endDate={analyticsEndDate}
+              onRangeChange={setAnalyticsRange}
+              onGranularityChange={setAnalyticsGranularity}
+              onStartDateChange={setAnalyticsStartDate}
+              onEndDateChange={setAnalyticsEndDate}
+              onOpenProduct={(id) => { setProductStockFilterPreset('all'); setEditingProductId(id); chooseTab('products'); }}
+              onOpenCategory={() => chooseTab('categories')}
+              canAccess={canAccess}
+            />
+          )}
           {tab === 'overview' && (
             <AdminOverview
               analytics={analytics}
@@ -974,6 +1066,11 @@ export const AdminDashboard: React.FC = () => {
                 setOrderDetails(order);
                 chooseTab('orders');
               }}
+              allowedQuickTabs={(['reports','content','media','contact'] as const).filter((target) => canAccess(tabPermission[target]))}
+              onOpenTab={(target) => chooseTab(target)}
+              canAddProduct={canAccess('manage_products')}
+              canReviewOrders={canAccess('manage_orders')}
+              canViewLowStock={canAccess('manage_products') || canAccess('manage_inventory')}
             />
           )}
 

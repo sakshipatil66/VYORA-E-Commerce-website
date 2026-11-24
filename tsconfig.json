@@ -24,5 +24,14 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "exclude": ["dist", "VYORA-E-Commerce-website-main"]
+  "exclude": [
+    "dist",
+    "VYORA-E-Commerce-website-main",
+    "VYORA-AdminDashboard-archive-*",
+    "VYORA-CMS-backup-*",
+    "**/*.bak*",
+    "**/*backup*",
+    "**/*.before-*.tsx",
+    "diag-server.ts"
+  ]
 }

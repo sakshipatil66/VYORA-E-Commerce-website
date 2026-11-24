@@ -9,10 +9,12 @@ import { CartDrawer } from './components/cart/CartDrawer';
 import { AuthModal } from './components/auth/AuthModal';
 import { QuickViewModal } from './components/common/QuickViewModal';
 import { CompareDrawer } from './components/common/CompareDrawer';
+import { ShoppingAssistant } from './components/common/ShoppingAssistant';
 import { ProductCarousel } from './components/common/ProductCarousel';
 
 // Home sections
 import { HeroCarousel } from './components/home/HeroCarousel';
+import { CmsStorySections } from './components/home/CmsStorySections';
 import { MarqueeBanner } from './components/home/MarqueeBanner';
 import { CategoryStrip } from './components/home/CategoryStrip';
 import { FeaturedCollections } from './components/home/FeaturedCollections';
@@ -20,6 +22,7 @@ import { FlashSaleSection } from './components/home/FlashSaleSection';
 import { EditorialSection } from './components/home/EditorialSection';
 import { CustomerReviews } from './components/home/CustomerReviews';
 import { NewsletterSection } from './components/home/NewsletterSection';
+import { CmsMetadata } from './hooks/useCmsContent';
 
 // Pages
 import { ShopPage } from './components/shop/ShopPage';
@@ -42,6 +45,7 @@ import { Sparkles, X, Gift, Tag, MapPin, Truck, ArrowRight } from 'lucide-react'
 import { CategoryId, Product } from './types';
 import { resolveCategoryMeta } from './data/categories';
 import { formatEstimatedDate, formatLocationLabel } from './data/locations';
+import { rankCatalogRecommendations } from './lib/catalogIntelligence';
 import { StoreCategory } from './types';
 
 type TrendingTabId = 'all' | 'fashion' | 'jewellery' | 'beauty' | 'electronics' | 'lifestyle';
@@ -158,6 +162,9 @@ const HomePageContent: React.FC = () => {
     setActivePage,
     openCategoryPage,
     recentlyViewedIds,
+    wishlist,
+    orders,
+    currentUser,
     applyCoupon,
     selectedLocation,
     requestLocationPicker
@@ -197,12 +204,15 @@ const HomePageContent: React.FC = () => {
   }, [products]);
 
   // 5. Recommended Products (Multi-slide carousel across diverse categories)
-  const recommendedProductsShowcase = useMemo(() => {
-    const byRating = [...products]
-      .filter((p) => !p.isFlashSale)
-      .sort((a, b) => b.rating - a.rating || a.discountPrice - b.discountPrice);
-    return byRating.slice(0, 16);
-  }, [products]);
+  const recommendations = useMemo(
+    () => rankCatalogRecommendations(products, {
+      recentlyViewedIds,
+      wishlistIds: wishlist,
+      orders: currentUser ? orders : []
+    }),
+    [products, recentlyViewedIds, wishlist, orders, currentUser]
+  );
+  const recommendedProductsShowcase = recommendations.products;
 
   const recentProducts = products.filter((p) => recentlyViewedIds.includes(p.id)).slice(0, 8);
 
@@ -218,6 +228,9 @@ const HomePageContent: React.FC = () => {
     <div>
       {/* 1. Multi-Category Luxury Campaign Hero */}
       <HeroCarousel />
+
+      {/* CMS-managed editorial and campaign stories */}
+      <CmsStorySections />
 
       {/* 2. Scrolling Luxury Craftsmanship Marquee */}
       <MarqueeBanner variant="dark" />
@@ -462,9 +475,9 @@ const HomePageContent: React.FC = () => {
         className="scroll-mt-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12 border-t border-[#EAE0D6]"
       >
         <ProductCarousel
-          eyebrow="Personalized Marketplace Picks · 4.8★+ Rated"
+          eyebrow={recommendations.personalized ? "Personalized Picks" : "Curated Picks"}
           title="Recommended Products"
-          subtitle="Curated high-affinity recommendations across lifestyle, beauty, electronics, footwear, and gifting."
+          subtitle={recommendations.personalized ? "Ranked from your recent browsing, wishlist and purchase categories." : "A considered selection from current catalogue ratings, reviews and featured status."}
           products={recommendedProductsShowcase}
           onViewAll={() => navigateToCategory('all')}
           viewAllLabel="Explore All Recommendations"
@@ -656,6 +669,7 @@ const MainLayout: React.FC = () => {
           <AuthModal />
           <QuickViewModal />
           <CompareDrawer />
+          <ShoppingAssistant />
         </>
       )}
 
@@ -683,6 +697,7 @@ const MainLayout: React.FC = () => {
 export default function App() {
   return (
     <StoreProvider>
+      <CmsMetadata />
       <MainLayout />
     </StoreProvider>
   );

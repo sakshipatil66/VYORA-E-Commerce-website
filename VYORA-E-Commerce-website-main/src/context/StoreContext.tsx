@@ -126,8 +126,8 @@ interface StoreContextType {
   requestLocationPicker: () => void;
 
   // Admin Product CRUD
-  addProduct: (product: Omit<Product, 'id'>) => void;
-  updateProduct: (product: Product) => void;
+  addProduct: (product: Omit<Product, 'id'>) => Promise<boolean>;
+  updateProduct: (product: Product) => Promise<boolean>;
   deleteProduct: (id: string) => void;
 
   // Toast
@@ -701,19 +701,29 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  // Admin Product CRUD
-  const addProduct = (newProdData: Omit<Product, 'id'>) => {
-    api.addProduct(newProdData).then(({ product }) => {
+// Admin Product CRUD
+  const addProduct = async (newProdData: Omit<Product, 'id'>): Promise<boolean> => {
+    try {
+      const { product } = await api.addProduct(newProdData);
       setProducts((prev) => [product, ...prev]);
       addToast(`Product "${product.name}" added to catalog!`);
-    }).catch((error: Error) => addToast(`Could not add product: ${error.message}`, 'warning'));
+      return true;
+    } catch (error) {
+      addToast(`Could not add product: ${(error as Error).message}`, 'warning');
+      return false;
+    }
   };
 
-  const updateProduct = (updated: Product) => {
-    api.updateProduct(updated).then(({ product }) => {
+  const updateProduct = async (updated: Product): Promise<boolean> => {
+    try {
+      const { product } = await api.updateProduct(updated);
       setProducts((prev) => prev.map((item) => item.id === product.id ? product : item));
       addToast(`Product "${product.name}" updated!`);
-    }).catch((error: Error) => addToast(`Could not update product: ${error.message}`, 'warning'));
+      return true;
+    } catch (error) {
+      addToast(`Could not update product: ${(error as Error).message}`, 'warning');
+      return false;
+    }
   };
 
   const deleteProduct = (id: string) => {

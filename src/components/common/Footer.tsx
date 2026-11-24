@@ -13,6 +13,7 @@ import {
 import { useStore } from '../../context/StoreContext';
 import { CategoryId } from '../../types';
 import { formatLocationLabel } from '../../data/locations';
+import { useCmsContent } from '../../hooks/useCmsContent';
 
 const POPULAR_PRODUCT_LINKS: { id: string; label: string }[] = [
   { id: 'vyo-fash-01', label: 'Kanjivaram Zari Crimson Bridal Saree' },
@@ -24,6 +25,7 @@ const POPULAR_PRODUCT_LINKS: { id: string; label: string }[] = [
 ];
 
 export const Footer: React.FC = () => {
+  const cmsContent = useCmsContent();
   const {
     setActivePage,
     openCategoryPage,
@@ -142,10 +144,10 @@ export const Footer: React.FC = () => {
               <span>VYORA Connoisseur Newsletter</span>
             </div>
             <h3 className="font-serif text-xl sm:text-2xl font-bold text-white">
-              Join Our Private Dispatch & Unlock ₹500 Off (Code: FIRST500)
+              {cmsContent?.footer.newsletterTitle || 'Join Our Private Dispatch & Unlock ₹500 Off (Code: FIRST500)'}
             </h3>
             <p className="text-xs text-rose-100/75 leading-relaxed">
-              Receive early invitations to seasonal Banarasi weaves, Polki jewellery drops, teak audio releases, and festive gifting privileges.
+              {cmsContent?.footer.newsletterDescription || 'Receive early invitations to seasonal Banarasi weaves, Polki jewellery drops, teak audio releases, and festive gifting privileges.'}
             </p>
           </div>
 
@@ -193,7 +195,7 @@ export const Footer: React.FC = () => {
             </button>
 
             <p className="text-xs text-rose-100/75 leading-relaxed max-w-sm">
-              India’s luxury multi-category marketplace celebrating certified handloom fashion, fine jewellery, Ayurvedic beauty, acoustic electronics, handcrafted footwear, home décor, bags, and royal gifting.
+              {cmsContent?.footer.description || 'India’s luxury multi-category marketplace celebrating certified handloom fashion, fine jewellery, Ayurvedic beauty, acoustic electronics, handcrafted footwear, home décor, bags, and royal gifting.'}
             </p>
 
             {/* Verified Location & Concierge Details */}
@@ -229,7 +231,7 @@ export const Footer: React.FC = () => {
                   onClick={() => handleNav('contact')}
                   className="hover:text-white transition-colors cursor-pointer"
                 >
-                  concierge@vyora.in
+                  {cmsContent?.footer.email || 'concierge@vyora.in'}
                 </button>
               </div>
             </div>

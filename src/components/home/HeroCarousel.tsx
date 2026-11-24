@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowRight, ChevronLeft, ChevronRight, Sparkles, CheckCircle2 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
+import { api, HomeBanner } from '../../lib/api';
 import { CategoryId } from '../../types';
 import heroRoyalCouture from '../../assets/images/hero_royal_couture_1793694603599.jpg';
 import heroPolkiJewels from '../../assets/images/hero_polki_jewels_1793694605573.jpg';
@@ -16,6 +17,7 @@ interface Slide {
   title: string;
   subtitle: string;
   image: string;
+  imageAlt?: string;
   category: CategoryId;
   ctaText: string;
   secondaryCta: string;
@@ -93,17 +95,32 @@ const SLIDES: Slide[] = [
 export const HeroCarousel: React.FC = () => {
   const [current, setCurrent] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [campaigns, setCampaigns] = useState<HomeBanner[]>([]);
   const { setActivePage, setSelectedCategory, setSelectedSubCategory } = useStore();
+
+  useEffect(() => {
+    let active = true;
+    api.homeBanners().then(({ banners }) => {
+      if (active && banners.length) setCampaigns(banners);
+    }).catch(() => {
+      // Keep the curated built-in slides available if the CMS service is unavailable.
+    });
+    return () => { active = false; };
+  }, []);
+
+  const slides: Slide[] = campaigns.length
+    ? campaigns.map((banner) => ({ ...banner, category: banner.category as CategoryId, secondaryCategory: banner.secondaryCategory as CategoryId }))
+    : SLIDES;
 
   useEffect(() => {
     if (isPaused) return;
     const timer = setInterval(() => {
-      setCurrent((prev) => (prev + 1) % SLIDES.length);
+      setCurrent((prev) => (prev + 1) % slides.length);
     }, 6000);
     return () => clearInterval(timer);
-  }, [isPaused]);
+  }, [isPaused, slides.length]);
 
-  const slide = SLIDES[current];
+  const slide = slides[current % slides.length];
 
   const handleCta = (cat: CategoryId) => {
     setSelectedCategory(cat);
@@ -132,7 +149,7 @@ export const HeroCarousel: React.FC = () => {
           >
             <img
               src={slide.image}
-              alt={slide.title}
+              alt={slide.imageAlt || slide.title}
               referrerPolicy="no-referrer"
               className="w-full h-full object-cover object-center"
             />
@@ -197,7 +214,7 @@ export const HeroCarousel: React.FC = () => {
           {/* Bottom Interactive Slide Progress Indicators */}
           <div className="mt-12 sm:mt-14 flex items-center justify-between gap-4">
             <div className="flex items-center gap-2.5" role="tablist" aria-label="Hero campaign slides">
-              {SLIDES.map((s, idx) => {
+              {slides.map((s, idx) => {
                 const active = idx === current;
                 return (
                   <button
@@ -218,17 +235,17 @@ export const HeroCarousel: React.FC = () => {
 
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setCurrent((prev) => (prev - 1 + SLIDES.length) % SLIDES.length)}
+                onClick={() => setCurrent((prev) => (prev - 1 + slides.length) % slides.length)}
                 aria-label="Previous campaign slide"
                 className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-black/35 hover:bg-black/60 text-white flex items-center justify-center border border-white/20 hover:border-[#D4AF37]/60 transition-colors cursor-pointer"
               >
                 <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
               <span className="px-3 py-1 bg-black/35 backdrop-blur-xs rounded-full border border-white/15 text-[11px] text-rose-100 font-mono tabular-nums">
-                0{current + 1} / 0{SLIDES.length}
+                0{current + 1} / 0{slides.length}
               </span>
               <button
-                onClick={() => setCurrent((prev) => (prev + 1) % SLIDES.length)}
+                onClick={() => setCurrent((prev) => (prev + 1) % slides.length)}
                 aria-label="Next campaign slide"
                 className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-black/35 hover:bg-black/60 text-white flex items-center justify-center border border-white/20 hover:border-[#D4AF37]/60 transition-colors cursor-pointer"
               >

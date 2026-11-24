@@ -2,20 +2,36 @@ import React, { useState } from 'react';
 import { Mail, MapPin, Clock, Send, CheckCircle2, Truck } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { formatLocationLabel } from '../../data/locations';
+import { api } from '../../lib/api';
+import { useCmsContent } from '../../hooks/useCmsContent';
 
 export const ContactPage: React.FC = () => {
   const { addToast, selectedLocation, requestLocationPicker } = useStore();
+  const cmsContent = useCmsContent();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [subject, setSubject] = useState('Product / Order Assistance');
   const [message, setMessage] = useState('');
   const [isSent, setIsSent] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email || !message) return;
-    setIsSent(true);
-    addToast('Your inquiry has been submitted to the Vyora Concierge.');
+    setIsSubmitting(true);
+    setSubmitError('');
+    try {
+      await api.submitContactInquiry({ name, email, subject, message });
+      setIsSent(true);
+      addToast('Your inquiry has been submitted to the VYORA Concierge.');
+    } catch (error) {
+      const text = (error as Error).message || 'Please try again.';
+      setSubmitError(`We could not send your inquiry. ${text}`);
+      addToast(`Inquiry could not be sent: ${text}`, 'warning');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -23,13 +39,13 @@ export const ContactPage: React.FC = () => {
       {/* Header */}
       <div className="text-center max-w-2xl mx-auto mb-12">
         <p className="text-xs font-semibold uppercase tracking-widest text-[#7A1438]">
-          Atelier Concierge
+          {cmsContent?.contact.eyebrow || 'Atelier Concierge'}
         </p>
         <h1 className="font-serif text-3xl sm:text-4xl font-bold text-neutral-900 mt-1">
-          We Are Here to Assist You
+          {cmsContent?.contact.title || 'We Are Here to Assist You'}
         </h1>
         <p className="text-xs sm:text-sm text-neutral-500 mt-2">
-          From bespoke multi-category consultations to consignment dispatch updates from Pune, Maharashtra, India, our concierge team is at your service.
+          {cmsContent?.contact.description || 'From bespoke multi-category consultations to consignment dispatch updates from Pune, Maharashtra, India, our concierge team is at your service.'}
         </p>
       </div>
 
@@ -49,7 +65,7 @@ export const ContactPage: React.FC = () => {
                 <div>
                   <h4 className="font-bold text-neutral-900">Primary Marketplace Location</h4>
                   <p className="text-[#4A0E17] font-semibold mt-0.5">
-                    Pune, Maharashtra, India
+                    {cmsContent?.contact.location || 'Pune, Maharashtra, India'}
                   </p>
                   <p className="text-neutral-500 mt-0.5 leading-relaxed">
                     Default shopping & priority dispatch center serving patrons across India.
@@ -85,7 +101,7 @@ export const ContactPage: React.FC = () => {
                   <p className="text-neutral-500 mt-0.5">
                     Order assistance, returns & wedding collaborations
                   </p>
-                  <p className="text-[#5B112B] font-mono font-semibold mt-1">concierge@vyora.in</p>
+                  <p className="text-[#5B112B] font-mono font-semibold mt-1">{cmsContent?.contact.email || 'concierge@vyora.in'}</p>
                 </div>
               </div>
 
@@ -96,7 +112,7 @@ export const ContactPage: React.FC = () => {
                 <div>
                   <h4 className="font-bold text-neutral-900">Concierge Hours</h4>
                   <p className="text-neutral-600 mt-0.5">
-                    Monday – Sunday · 9:00 AM to 9:00 PM IST
+                    {cmsContent?.contact.hours || 'Monday – Sunday · 9:00 AM to 9:00 PM IST'}
                   </p>
                 </div>
               </div>
@@ -105,10 +121,10 @@ export const ContactPage: React.FC = () => {
 
           <div className="bg-[#4A0E17] text-white p-6 rounded-2xl border border-[#7A1438] space-y-2 text-xs">
             <h4 className="font-serif text-base font-bold text-[#D4AF37]">
-              Bridal, Festive & Corporate Gifting Concierge
+              {cmsContent?.contact.conciergeTitle || 'Bridal, Festive & Corporate Gifting Concierge'}
             </h4>
             <p className="text-rose-100/80 leading-relaxed font-light">
-              Planning bespoke wedding favors, handloom couture ensembles, or luxury corporate hampers? Submit an inquiry and our curation desk in Pune, Maharashtra, India will prepare a tailored proposal.
+              {cmsContent?.contact.conciergeDescription || 'Planning bespoke wedding favors, handloom couture ensembles, or luxury corporate hampers? Submit an inquiry and our curation desk in Pune, Maharashtra, India will prepare a tailored proposal.'}
             </p>
           </div>
         </div>
@@ -133,6 +149,7 @@ export const ContactPage: React.FC = () => {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
+              {submitError && <p role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-800">{submitError}</p>}
               <h3 className="font-serif text-lg font-bold text-neutral-900 mb-2">
                 Send an Inquiry to the Atelier
               </h3>
@@ -202,10 +219,11 @@ export const ContactPage: React.FC = () => {
 
               <button
                 type="submit"
-                className="py-3 px-6 text-xs font-semibold text-white bg-[#5B112B] hover:bg-[#430C1F] rounded-md transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
+                disabled={isSubmitting}
+                className="py-3 px-6 text-xs font-semibold text-white bg-[#5B112B] hover:bg-[#430C1F] rounded-md transition-colors flex items-center gap-2 shadow-xs cursor-pointer disabled:cursor-wait disabled:opacity-60"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>Submit Inquiry</span>
+                <span>{isSubmitting ? 'Sending inquiry…' : 'Submit Inquiry'}</span>
               </button>
             </form>
           )}

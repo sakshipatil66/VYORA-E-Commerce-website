@@ -39,6 +39,7 @@ interface AdminCustomersProps {
 }
 
 type StatusFilter = 'all' | 'active' | 'inactive';
+type CustomerSegment = 'all' | 'repeat' | 'single' | 'dormant' | 'top_quartile';
 type DateRangeFilter = 'all' | '7d' | '30d' | '90d' | 'custom';
 type SortKey = 'joined_desc' | 'joined_asc' | 'spent_desc' | 'orders_desc' | 'name';
 
@@ -80,6 +81,7 @@ export const AdminCustomers: React.FC<AdminCustomersProps> = ({
 }) => {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [segment, setSegment] = useState<CustomerSegment>('all');
   const [dateRange, setDateRange] = useState<DateRangeFilter>('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -98,6 +100,7 @@ export const AdminCustomers: React.FC<AdminCustomersProps> = ({
     const q = search.trim().toLowerCase();
     const nowMs = Date.now();
     const dayMs = 24 * 60 * 60 * 1000;
+    const spendThreshold = [...customers].map((customer) => customer.lifetimeSpent).filter((spend) => spend > 0).sort((a, b) => a - b)[Math.max(0, Math.ceil(customers.filter((customer) => customer.lifetimeSpent > 0).length * 0.75) - 1)] ?? 0;
 
     return [...customers]
       .filter((customer) => {
@@ -110,6 +113,13 @@ export const AdminCustomers: React.FC<AdminCustomersProps> = ({
           statusFilter === 'all' ||
           (statusFilter === 'active' && customer.isActive) ||
           (statusFilter === 'inactive' && !customer.isActive);
+
+        const lastOrderMs = customer.lastOrderDate ? Date.parse(customer.lastOrderDate) : Number.NaN;
+        const matchesSegment = segment === 'all' ||
+          (segment === 'repeat' && customer.totalOrders > 1) ||
+          (segment === 'single' && customer.totalOrders === 1) ||
+          (segment === 'dormant' && customer.totalOrders > 0 && Number.isFinite(lastOrderMs) && nowMs - lastOrderMs >= 90 * dayMs) ||
+          (segment === 'top_quartile' && spendThreshold > 0 && customer.lifetimeSpent >= spendThreshold);
 
         let matchesDate = true;
         const createdMs = Date.parse(customer.createdAt);
@@ -129,7 +139,7 @@ export const AdminCustomers: React.FC<AdminCustomersProps> = ({
           }
         }
 
-        return matchesQuery && matchesStatus && matchesDate;
+        return matchesQuery && matchesStatus && matchesSegment && matchesDate;
       })
       .sort((a, b) => {
         if (sortBy === 'joined_asc') return Date.parse(a.createdAt) - Date.parse(b.createdAt);
@@ -138,7 +148,7 @@ export const AdminCustomers: React.FC<AdminCustomersProps> = ({
         if (sortBy === 'name') return a.name.localeCompare(b.name);
         return Date.parse(b.createdAt) - Date.parse(a.createdAt);
       });
-  }, [customers, search, statusFilter, dateRange, startDate, endDate, sortBy]);
+  }, [customers, search, statusFilter, segment, dateRange, startDate, endDate, sortBy]);
 
   const pageSize = 10;
   const totalPages = Math.max(1, Math.ceil(filteredCustomers.length / pageSize));
@@ -146,11 +156,12 @@ export const AdminCustomers: React.FC<AdminCustomersProps> = ({
   const visibleCustomers = filteredCustomers.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   const hasFilters =
-    Boolean(search) || statusFilter !== 'all' || dateRange !== 'all' || Boolean(startDate) || Boolean(endDate);
+    Boolean(search) || statusFilter !== 'all' || segment !== 'all' || dateRange !== 'all' || Boolean(startDate) || Boolean(endDate);
 
   const resetFilters = () => {
     setSearch('');
     setStatusFilter('all');
+    setSegment('all');
     setDateRange('all');
     setStartDate('');
     setEndDate('');
@@ -262,7 +273,7 @@ export const AdminCustomers: React.FC<AdminCustomersProps> = ({
           </div>
 
           {/* Search & Filters */}
-          <div className="mt-4 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-[minmax(220px,1.5fr)_repeat(3,minmax(140px,1fr))]">
+          <div className="mt-4 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-[minmax(220px,1.5fr)_repeat(4,minmax(140px,1fr))]">
             <label className="relative block">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#a08e84]" />
               <input
@@ -288,6 +299,22 @@ export const AdminCustomers: React.FC<AdminCustomersProps> = ({
               <option value="all">All statuses</option>
               <option value="active">Active customers</option>
               <option value="inactive">Deactivated</option>
+            </select>
+
+            <select
+              value={segment}
+              onChange={(e) => {
+                setSegment(e.target.value as CustomerSegment);
+                setPage(1);
+              }}
+              aria-label="Filter customer segment"
+              className="rounded-xl border border-[#eadfd5] bg-[#fdfbf9] px-3 py-2.5 text-xs text-[#30231f] outline-none focus:border-[#8c3448]"
+            >
+              <option value="all">All customer segments</option>
+              <option value="repeat">Repeat customers · 2+ orders</option>
+              <option value="single">Single order</option>
+              <option value="dormant">No order in 90+ days</option>
+              <option value="top_quartile">Top spend quartile</option>
             </select>
 
             <select

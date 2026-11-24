@@ -128,8 +128,17 @@ export const AdminDashboard: React.FC = () => {
       stockQuantity, inStock: stockQuantity > 0, primaryImage: image, images: [image], rating: productModal === 'new' ? 0 : productModal.rating,
       reviewCount: productModal === 'new' ? 0 : productModal.reviewCount, highlights: productModal === 'new' ? ['Selected for the VYORA collection'] : productModal.highlights };
     setSaving(true);
-    if (productModal === 'new') addProduct(patch); else updateProduct(patch);
-    setSaving(false); setProductModal(null);
+    try {
+      const success = productModal === 'new'
+        ? await addProduct(patch)
+        : await updateProduct(patch);
+
+      if (success) {
+        setProductModal(null);
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const saveBanner = async (event: React.FormEvent<HTMLFormElement>) => {

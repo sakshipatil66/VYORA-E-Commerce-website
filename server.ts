@@ -39,6 +39,8 @@ import {
   ReturnStatusEvent,
   ShipmentHistoryEvent,
   ShipmentStatus,
+  CmsPermission,
+  StaffRole,
   User
 } from './src/types';
 
@@ -442,12 +444,60 @@ database.exec(`
   CREATE INDEX IF NOT EXISTS idx_shipment_history_order ON shipment_history(order_id, created_at DESC);
 `);
 
+ // Phase 6: CMS settings, homepage banners & contact inquiries
+database.exec(`
+  CREATE TABLE IF NOT EXISTS cms_settings (
+    id TEXT PRIMARY KEY,
+    content_json TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS home_banners (
+    id TEXT PRIMARY KEY,
+    position INTEGER NOT NULL DEFAULT 0,
+    data_json TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE INDEX IF NOT EXISTS idx_home_banners_position ON home_banners(position);
+  CREATE TABLE IF NOT EXISTS contact_inquiries (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    email TEXT NOT NULL,
+    subject TEXT NOT NULL DEFAULT '',
+    message TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'new',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE INDEX IF NOT EXISTS idx_contact_inquiries_created ON contact_inquiries(created_at DESC);
+  CREATE TABLE IF NOT EXISTS media_assets (
+    id TEXT PRIMARY KEY,
+    filename TEXT NOT NULL UNIQUE,
+    original_name TEXT NOT NULL,
+    mime_type TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    width INTEGER NOT NULL,
+    height INTEGER NOT NULL,
+    alt_text TEXT NOT NULL DEFAULT '',
+    content BLOB NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE INDEX IF NOT EXISTS idx_media_assets_created ON media_assets(created_at DESC);
+`);
 const userColumns = database.prepare('PRAGMA table_info(users)').all() as { name: string }[];
 if (!userColumns.some((column) => column.name === 'is_active')) {
   database.exec('ALTER TABLE users ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1');
 }
 if (!userColumns.some((column) => column.name === 'updated_at')) {
   database.exec("ALTER TABLE users ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''");
+}
+if (!userColumns.some((column) => column.name === 'staff_role')) {
+  database.exec('ALTER TABLE users ADD COLUMN staff_role TEXT');
+}
+if (!userColumns.some((column) => column.name === 'permissions_json')) {
+  database.exec("ALTER TABLE users ADD COLUMN permissions_json TEXT NOT NULL DEFAULT '[]'");
+}
+if (!userColumns.some((column) => column.name === 'last_login_at')) {
+  database.exec('ALTER TABLE users ADD COLUMN last_login_at TEXT');
 }
 database.prepare("UPDATE users SET updated_at = COALESCE(NULLIF(created_at, ''), ?) WHERE updated_at = ''")
   .run(new Date().toISOString());
@@ -558,6 +608,7 @@ if (configuredAdminEmail) {
   database.prepare("UPDATE users SET role = 'admin' WHERE email = ? COLLATE NOCASE")
     .run(configuredAdminEmail);
 }
+database.prepare("UPDATE users SET staff_role='super_admin' WHERE role='admin' AND staff_role IS NULL").run();
 
 // Phase 6: Admin Activity Log
 database.exec(`
@@ -579,6 +630,25 @@ database.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_audit_logs_actor_id
   ON audit_logs(actor_id);
+
+  CREATE TABLE IF NOT EXISTS admin_notifications (
+    id TEXT PRIMARY KEY,
+    event_key TEXT NOT NULL UNIQUE,
+    type TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    target_tab TEXT NOT NULL,
+    entity_id TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS admin_notification_reads (
+    notification_id TEXT NOT NULL REFERENCES admin_notifications(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    read_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (notification_id, user_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_admin_notifications_created ON admin_notifications(created_at DESC);
 `);
 
 app.use(express.json({ limit: '1mb' }));
@@ -857,12 +927,15 @@ const publicUser = (row: Record<string, unknown>): User => ({
   email: String(row.email).endsWith('@phone.vyora.invalid') ? '' : String(row.email),
   phone: String(row.phone || ''),
   role: row.role === 'admin' ? 'admin' : 'customer',
+  staffRole: row.role === 'admin' ? String(row.staff_role || 'super_admin') as StaffRole : null,
+  permissions: (() => { try { const value = JSON.parse(String(row.permissions_json || '[]')); return Array.isArray(value) ? value as CmsPermission[] : []; } catch { return []; } })(),
   clubTier: row.club_tier === 'Platinum' || row.club_tier === 'Gold' ? row.club_tier : 'Silver',
   clubPoints: Number(row.club_points || 0),
   addresses: JSON.parse(String(row.addresses_json || '[]')) as Address[],
   isActive: row.is_active === null || row.is_active === undefined ? true : Number(row.is_active) !== 0,
   createdAt: sqliteTimestampToIso(String(row.created_at || '')),
-  updatedAt: sqliteTimestampToIso(String(row.updated_at || ''))
+  updatedAt: sqliteTimestampToIso(String(row.updated_at || '')),
+  lastLoginAt: sqliteTimestampToIso(String(row.last_login_at || '')) || undefined
 });
 
 const userById = (id: string) =>
@@ -911,6 +984,63 @@ const authenticate = (handler: (req: AuthenticatedRequest, res: Response) => unk
     }
   }];
 
+const allStaffPermissions: CmsPermission[] = [
+  'view_overview','manage_products','manage_inventory','manage_categories','manage_orders','manage_shipping',
+  'manage_returns','manage_refunds','manage_customers','manage_coupons','view_reports','manage_notifications',
+  'manage_staff','view_audit_logs','view_advanced_analytics','manage_reviews','manage_banners','manage_seo',
+  'manage_campaigns','manage_cms','manage_media','manage_contact','manage_settings'
+];
+const rolePermissionDefaults: Record<StaffRole, CmsPermission[]> = {
+  super_admin: allStaffPermissions,
+  admin: allStaffPermissions.filter((permission) => permission !== 'manage_staff' && permission !== 'manage_settings'),
+  order_manager: ['view_overview','manage_orders','manage_shipping','manage_returns','manage_refunds','manage_customers','manage_contact','manage_notifications'],
+  inventory_manager: ['view_overview','manage_products','manage_inventory','manage_returns','view_reports','manage_notifications'],
+  customer_support: ['view_overview','manage_orders','manage_customers','manage_returns','manage_contact','manage_notifications'],
+  content_manager: ['view_overview','manage_cms','manage_banners','manage_media','manage_seo','view_reports'],
+  analyst: ['view_overview','view_reports','view_advanced_analytics']
+};
+const staffRoleSet = new Set<StaffRole>(Object.keys(rolePermissionDefaults) as StaffRole[]);
+const effectiveStaffPermissions = (user: User): CmsPermission[] => {
+  if (user.role !== 'admin') return [];
+  const role = user.staffRole && staffRoleSet.has(user.staffRole) ? user.staffRole : 'super_admin';
+  const cap = rolePermissionDefaults[role];
+  if (!user.permissions?.length) return role === 'super_admin' ? cap : [];
+  return cap.filter((permission) => user.permissions!.includes(permission));
+};
+const assertStaffPermission = (req: AuthenticatedRequest, permission: CmsPermission) => {
+  if (!req.user || !effectiveStaffPermissions(req.user).includes(permission)) fail(403, 'Your staff role does not allow this action');
+};
+const requestPermission = (path: string): CmsPermission | null => {
+  const route = path.replace(/^\/api\/admin/, '') || '/';
+  if (route.startsWith('/staff')) return 'manage_staff';
+  if (route.startsWith('/audit-logs')) return 'view_audit_logs';
+  if (route.startsWith('/notifications')) return 'manage_notifications';
+  if (route.startsWith('/search')) return 'view_overview';
+  if (route.startsWith('/analytics')) return 'view_reports';
+  if (route.startsWith('/content/home-banners')) return 'manage_banners';
+  if (route.startsWith('/media')) return 'manage_media';
+  if (route.startsWith('/content')) return 'manage_cms';
+  if (route.startsWith('/contact-inquiries')) return 'manage_contact';
+  if (route.startsWith('/products')) return 'manage_products';
+  if (route.startsWith('/inventory')) return 'manage_inventory';
+  if (route.startsWith('/categories')) return 'manage_categories';
+  if (route.startsWith('/orders')) return 'manage_orders';
+  if (route.startsWith('/shipments')) return 'manage_shipping';
+  if (route.startsWith('/returns')) return 'manage_returns';
+  if (route.startsWith('/refunds')) return 'manage_refunds';
+  if (route.startsWith('/customers')) return 'manage_customers';
+  if (route.startsWith('/coupons')) return 'manage_coupons';
+  if (route.startsWith('/summary')) return 'view_overview';
+  return null;
+};
+app.use('/api/admin', requireAuth, (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  const permission = requestPermission(req.originalUrl.split('?')[0]);
+  if (!permission || !effectiveStaffPermissions(req.user!).includes(permission)) {
+    return res.status(403).json({ error: 'Your staff role does not allow this action.' });
+  }
+  next();
+});
+
 const recordAdminActivity = (
   req: AuthenticatedRequest,
   action: string,
@@ -925,20 +1055,604 @@ const recordAdminActivity = (
   database.prepare(`
     INSERT INTO audit_logs (
       id, actor_id, actor_name, actor_role,
-      action, target_entity, target_id, metadata_json
+      action, target_entity, target_id, metadata_json, ip_address
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     randomUUID(),
     actor.id,
     actor.name || 'Administrator',
-    actor.role,
+    actor.staffRole || actor.role,
     action,
     targetEntity,
     targetId,
-    JSON.stringify(metadata)
+    JSON.stringify(metadata),
+    req.ip || ''
   );
 };
+
+const defaultStoreCmsContent = {
+  about: { eyebrow: '', title: '', description: '', promiseTitle: '', promiseDescription: '' },
+  contact: { eyebrow: '', title: '', description: '', email: '', hours: '', location: '', conciergeTitle: '', conciergeDescription: '' },
+  faq: { eyebrow: '', title: '', description: '', items: [] as { category: string; question: string; answer: string }[] },
+  policies: {
+    shipping: { title: '', summary: '', body: '' },
+    returns: { title: '', summary: '', body: '' },
+    privacy: { title: '', summary: '', body: '' },
+    terms: { title: '', summary: '', body: '' }
+  },
+  footer: { description: '', email: '', newsletterTitle: '', newsletterDescription: '' },
+  seo: { title: 'VYORA | Curated Indian Luxury', description: '', keywords: '', ogTitle: '', ogDescription: '' },
+  storySections: [] as { id: string; kind: string; eyebrow: string; heading: string; description: string; image: string; ctaLabel: string; category: string; active: boolean }[]
+};
+
+const MEDIA_UPLOAD_LIMIT = 10 * 1024 * 1024;
+const mediaFormats = {
+  jpg: { mime: 'image/jpeg', extension: 'jpg' },
+  jpeg: { mime: 'image/jpeg', extension: 'jpg' },
+  png: { mime: 'image/png', extension: 'png' },
+  webp: { mime: 'image/webp', extension: 'webp' },
+  avif: { mime: 'image/avif', extension: 'avif' }
+} as const;
+
+const imageDimensions = (content: Buffer, mimeType: string): { width: number; height: number } | null => {
+  if (mimeType === 'image/png' && content.length >= 24 && content.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) {
+    return { width: content.readUInt32BE(16), height: content.readUInt32BE(20) };
+  }
+  if (mimeType === 'image/jpeg' && content.length >= 4 && content[0] === 0xff && content[1] === 0xd8) {
+    let offset = 2;
+    while (offset + 4 < content.length) {
+      if (content[offset] !== 0xff) { offset += 1; continue; }
+      const marker = content[offset + 1];
+      const length = content.readUInt16BE(offset + 2);
+      if (length < 2 || offset + 2 + length > content.length) break;
+      if ([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf].includes(marker)) {
+        return { width: content.readUInt16BE(offset + 7), height: content.readUInt16BE(offset + 5) };
+      }
+      offset += 2 + length;
+    }
+  }
+  if (mimeType === 'image/webp' && content.length >= 30 && content.toString('ascii', 0, 4) === 'RIFF' && content.toString('ascii', 8, 12) === 'WEBP') {
+    const chunk = content.toString('ascii', 12, 16);
+    if (chunk === 'VP8X') return { width: 1 + content.readUIntLE(24, 3), height: 1 + content.readUIntLE(27, 3) };
+    if (chunk === 'VP8L' && content[20] === 0x2f) {
+      const bits = content.readUInt32LE(21);
+      return { width: (bits & 0x3fff) + 1, height: ((bits >> 14) & 0x3fff) + 1 };
+    }
+    if (chunk === 'VP8 ' && content.length >= 30 && content[23] === 0x9d && content[24] === 0x01 && content[25] === 0x2a) {
+      return { width: content.readUInt16LE(26) & 0x3fff, height: content.readUInt16LE(28) & 0x3fff };
+    }
+  }
+  if (mimeType === 'image/avif' && content.length >= 16 && content.toString('ascii', 4, 8) === 'ftyp') {
+    const brands = content.toString('ascii', 8, Math.min(content.length, 64));
+    if (!brands.includes('avif') && !brands.includes('avis')) return null;
+    const marker = content.indexOf('ispe', 0, 'ascii');
+    if (marker >= 0 && marker + 16 <= content.length) return { width: content.readUInt32BE(marker + 8), height: content.readUInt32BE(marker + 12) };
+  }
+  return null;
+};
+
+const validateMediaBytes = (raw: unknown, mimeHeader: string, originalName: string) => {
+  if (!Buffer.isBuffer(raw) || !raw.length) fail(400, 'Choose an image file to upload');
+  const content = raw as Buffer;
+  if (content.length > MEDIA_UPLOAD_LIMIT) fail(413, 'Images must be 10 MB or smaller');
+  const extension = originalName.split('.').pop()?.toLowerCase() || '';
+  const format = mediaFormats[extension as keyof typeof mediaFormats];
+  if (!Object.prototype.hasOwnProperty.call(mediaFormats, extension) || mimeHeader.toLowerCase() !== format.mime) fail(415, 'Use a JPG, PNG, WebP, or AVIF image with a matching file extension');
+  const dimensions = imageDimensions(content, format.mime) ?? fail(415, 'The image file is invalid or its dimensions are unsupported');
+  if (dimensions.width < 1 || dimensions.height < 1 || dimensions.width > 50000 || dimensions.height > 50000 || dimensions.width * dimensions.height > 100_000_000) fail(415, 'The image dimensions are unsupported');
+  return { content, ...format, ...dimensions };
+};
+
+const cleanUploadedName = (value: string) => {
+  const basename = value.replaceAll('\\', '/').split('/').pop() || 'image';
+  return basename.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 180) || 'image';
+};
+
+const sqliteBlob = (content: Buffer): NodeJS.ArrayBufferView => {
+  const bytes = new Uint8Array(new ArrayBuffer(content.length));
+  bytes.set(content);
+  return bytes;
+};
+
+const mediaAssetUrl = (id: string) => `/api/media/${encodeURIComponent(id)}`;
+
+const mediaReferences = (id: string) => {
+  const locations: string[] = [];
+  const target = mediaAssetUrl(id);
+  const visit = (value: unknown, location: string): void => {
+    if (typeof value === 'string') {
+      if (value === target || value.endsWith(target)) locations.push(location);
+      return;
+    }
+    if (Array.isArray(value)) { value.forEach((item, index) => visit(item, `${location} ${index + 1}`)); return; }
+    if (!value || typeof value !== 'object') return;
+    const record = value as Record<string, unknown>;
+    const label = ['title', 'name', 'heading'].map((key) => record[key]).find((item) => typeof item === 'string' && item.trim()) as string | undefined;
+    const childLocation = label ? `${location}: ${label}` : location;
+    for (const [key, child] of Object.entries(record)) {
+      if (key === 'image' || key === 'images' || key === 'primaryImage') visit(child, childLocation);
+      else if (child && typeof child === 'object') visit(child, childLocation);
+    }
+  };
+  const inspect = (json: string | undefined, label: string) => {
+    if (!json) return;
+    try { visit(JSON.parse(json), label); } catch { /* malformed legacy content cannot block safe deletion */ }
+  };
+  for (const row of database.prepare('SELECT data_json FROM home_banners').all() as { data_json: string }[]) inspect(row.data_json, 'Homepage banner');
+  for (const row of database.prepare('SELECT data_json FROM products').all() as { data_json: string }[]) inspect(row.data_json, 'Product');
+  for (const row of database.prepare('SELECT image FROM categories WHERE image <> ?').all('') as { image: string }[]) if (row.image === target || row.image.endsWith(target)) locations.push('Category image');
+  for (const row of database.prepare("SELECT id, content_json FROM cms_settings WHERE id IN ('store_content','brand_story')").all() as { id: string; content_json: string }[]) inspect(row.content_json, row.id === 'brand_story' ? 'Brand story' : 'Store content');
+  return [...new Set(locations)];
+};
+
+const mediaSummary = (row: { id: string; filename: string; original_name: string; mime_type: string; size_bytes: number; width: number; height: number; alt_text: string; created_at: string; updated_at: string }) => ({
+  id: row.id, filename: row.filename, originalName: row.original_name, mimeType: row.mime_type,
+  sizeBytes: row.size_bytes, width: row.width, height: row.height, altText: row.alt_text,
+  url: mediaAssetUrl(row.id), createdAt: row.created_at, updatedAt: row.updated_at,
+  usage: mediaReferences(row.id)
+});
+
+const mediaUpload = express.raw({ type: 'image/*', limit: MEDIA_UPLOAD_LIMIT });
+const authenticatedMediaHandler = (handler: (req: AuthenticatedRequest, res: Response) => unknown) => authenticate(handler)[1];
+const uploadNameFromRequest = (req: Request) => {
+  try { return cleanUploadedName(decodeURIComponent(String(req.headers['x-upload-filename'] || 'image'))); }
+  catch { return fail(400, 'The uploaded filename is invalid'); }
+};
+
+app.get('/api/media/:id', (req, res) => {
+  const row = database.prepare('SELECT mime_type, content FROM media_assets WHERE id = ?').get(req.params.id) as { mime_type: string; content: Uint8Array } | undefined;
+  if (!row) return res.status(404).json({ error: 'Image not found' });
+  res.setHeader('Content-Type', row.mime_type);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Cache-Control', 'public, max-age=300, must-revalidate');
+  return res.status(200).send(Buffer.from(row.content));
+});
+
+app.get('/api/admin/media', ...authenticate((req, res) => {
+  if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
+  const rows = database.prepare('SELECT id, filename, original_name, mime_type, size_bytes, width, height, alt_text, created_at, updated_at FROM media_assets ORDER BY created_at DESC, id DESC').all() as Parameters<typeof mediaSummary>[0][];
+  res.json({ assets: rows.map(mediaSummary) });
+}));
+
+app.post('/api/admin/media', requireAuth, requireAdmin, mediaUpload, authenticatedMediaHandler((req, res) => {
+  if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
+  const originalName = uploadNameFromRequest(req);
+  const validated = validateMediaBytes(req.body, String(req.headers['content-type'] || '').split(';')[0], originalName);
+  const id = randomUUID();
+  const filename = `${id}.${validated.extension}`;
+  database.prepare('INSERT INTO media_assets (id, filename, original_name, mime_type, size_bytes, width, height, content) VALUES ($id, $filename, $originalName, $mime, $size, $width, $height, $content)')
+    .run({ $id: id, $filename: filename, $originalName: originalName, $mime: validated.mime, $size: validated.content.length, $width: validated.width, $height: validated.height, $content: sqliteBlob(validated.content) });
+  recordAdminActivity(req, 'upload', 'media_asset', id, { filename, sizeBytes: validated.content.length });
+  const row = database.prepare('SELECT id, filename, original_name, mime_type, size_bytes, width, height, alt_text, created_at, updated_at FROM media_assets WHERE id = ?').get(id) as Parameters<typeof mediaSummary>[0];
+  res.status(201).json({ asset: mediaSummary(row) });
+}));
+
+app.patch('/api/admin/media/:id', ...authenticate((req, res) => {
+  if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
+  const altText = req.body?.altText;
+  if (typeof altText !== 'string' || altText.length > 500) fail(400, 'Alt text must be 500 characters or fewer');
+  const result = database.prepare('UPDATE media_assets SET alt_text = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(altText.trim(), req.params.id);
+  if (!result.changes) fail(404, 'Image not found');
+  recordAdminActivity(req, 'update', 'media_asset', req.params.id, { field: 'alt_text' });
+  const row = database.prepare('SELECT id, filename, original_name, mime_type, size_bytes, width, height, alt_text, created_at, updated_at FROM media_assets WHERE id = ?').get(req.params.id) as Parameters<typeof mediaSummary>[0];
+  res.json({ asset: mediaSummary(row) });
+}));
+
+app.put('/api/admin/media/:id/replace', requireAuth, requireAdmin, mediaUpload, authenticatedMediaHandler((req, res) => {
+  if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
+  const originalName = uploadNameFromRequest(req);
+  const validated = validateMediaBytes(req.body, String(req.headers['content-type'] || '').split(';')[0], originalName);
+  const replacementFilename = `${req.params.id}.${validated.extension}`;
+  const result = database.prepare('UPDATE media_assets SET filename = $filename, original_name = $originalName, mime_type = $mime, size_bytes = $size, width = $width, height = $height, content = $content, updated_at = CURRENT_TIMESTAMP WHERE id = $id')
+    .run({ $filename: replacementFilename, $originalName: originalName, $mime: validated.mime, $size: validated.content.length, $width: validated.width, $height: validated.height, $content: sqliteBlob(validated.content), $id: req.params.id });
+  if (!result.changes) fail(404, 'Image not found');
+  recordAdminActivity(req, 'replace', 'media_asset', req.params.id, { filename: replacementFilename, sizeBytes: validated.content.length });
+  const row = database.prepare('SELECT id, filename, original_name, mime_type, size_bytes, width, height, alt_text, created_at, updated_at FROM media_assets WHERE id = ?').get(req.params.id) as Parameters<typeof mediaSummary>[0];
+  res.json({ asset: mediaSummary(row) });
+}));
+
+app.delete('/api/admin/media/:id', ...authenticate((req, res) => {
+  if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
+  const row = database.prepare('SELECT id FROM media_assets WHERE id = ?').get(req.params.id);
+  if (!row) fail(404, 'Image not found');
+  const usage = mediaReferences(req.params.id);
+  if (usage.length) return res.status(409).json({ error: 'This image is still used by saved content. Replace or remove those image references before deleting it.', usage });
+  database.prepare('DELETE FROM media_assets WHERE id = ?').run(req.params.id);
+  recordAdminActivity(req, 'delete', 'media_asset', req.params.id);
+  res.json({ success: true });
+}));
+
+const emptyBrandStory = {
+  title: '',
+  introduction: '',
+  mission: '',
+  vision: '',
+  values: [] as string[],
+  milestones: [] as { id: string; year: string; title: string; description: string; image: string }[]
+};
+
+const readCmsSettings = (id: string) => database.prepare(
+  'SELECT content_json FROM cms_settings WHERE id = ?'
+).get(id) as { content_json: string } | undefined;
+
+const readStoreCmsRecord = () => {
+  const defaultRecord = { draft: defaultStoreCmsContent, published: defaultStoreCmsContent, updatedAt: null as string | null };
+  const row = readCmsSettings('store_content');
+  if (!row) return defaultRecord;
+  try {
+    const parsed = JSON.parse(row.content_json) as Record<string, unknown>;
+    if (parsed && typeof parsed === 'object' && 'draft' in parsed) {
+      return {
+        draft: (parsed.draft || defaultStoreCmsContent) as typeof defaultStoreCmsContent,
+        published: (parsed.published || null) as typeof defaultStoreCmsContent | null,
+        updatedAt: typeof parsed.updatedAt === 'string' ? parsed.updatedAt : null
+      };
+    }
+    // Existing Phase 3 records were live content; retain their public behavior.
+    return { draft: parsed as typeof defaultStoreCmsContent, published: parsed as typeof defaultStoreCmsContent, updatedAt: null };
+  } catch {
+    return defaultRecord;
+  }
+};
+
+const validBrandStory = (value: unknown): value is typeof emptyBrandStory => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const story = value as Record<string, unknown>;
+  const textFields = ['title', 'introduction', 'mission', 'vision'];
+  if (textFields.some((field) => typeof story[field] !== 'string' || (story[field] as string).length > (field === 'introduction' ? 4000 : 500))) return false;
+  if (!Array.isArray(story.values) || story.values.length > 20 || story.values.some((item) => typeof item !== 'string' || item.length > 100)) return false;
+  if (!Array.isArray(story.milestones) || story.milestones.length > 50) return false;
+  return story.milestones.every((item) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
+    const milestone = item as Record<string, unknown>;
+    return typeof milestone.id === 'string' && milestone.id.length <= 80 &&
+      typeof milestone.year === 'string' && milestone.year.length <= 24 &&
+      typeof milestone.title === 'string' && milestone.title.trim().length > 0 && milestone.title.length <= 160 &&
+      typeof milestone.description === 'string' && milestone.description.length <= 1200 &&
+      typeof milestone.image === 'string' && milestone.image.length <= 2000 &&
+      (milestone.imageAlt === undefined || (typeof milestone.imageAlt === 'string' && milestone.imageAlt.length <= 500));
+  });
+};
+
+app.get('/api/content/home-banners', (_req, res) => {
+  const rows = database.prepare('SELECT data_json FROM home_banners ORDER BY position ASC, rowid ASC').all() as { data_json: string }[];
+  const now = Date.now();
+  const banners = rows.map((row) => JSON.parse(row.data_json) as Record<string, unknown>)
+    .filter((banner) => {
+      if (banner.active !== true) return false;
+      const startsAt = typeof banner.startsAt === 'string' ? Date.parse(banner.startsAt) : Number.NaN;
+      const endsAt = typeof banner.endsAt === 'string' ? Date.parse(banner.endsAt) : Number.NaN;
+      return (!Number.isFinite(startsAt) || startsAt <= now) && (!Number.isFinite(endsAt) || endsAt >= now);
+    });
+  res.json({ banners });
+});
+
+app.get('/api/content/settings', (_req, res) => {
+  const record = readStoreCmsRecord();
+  res.json({ content: record.published || defaultStoreCmsContent });
+});
+
+app.get('/api/admin/content/settings', ...authenticate((req, res) => {
+  if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
+  res.json(readStoreCmsRecord());
+}));
+
+app.put('/api/admin/content/home-banners', ...authenticate((req, res) => {
+  if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
+  const banners = req.body?.banners as unknown;
+  const categories = new Set(['all', ...(database.prepare('SELECT id FROM categories').all() as { id: string }[]).map((row) => row.id)]);
+  if (!Array.isArray(banners) || banners.length > 12) fail(400, 'Provide no more than 12 homepage banners');
+  const bannerList = banners as unknown[];
+  const ids = new Set<string>();
+  for (const raw of bannerList) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) fail(400, 'Homepage banner details are invalid');
+    const banner = raw as Record<string, unknown>;
+    const id = typeof banner.id === 'string' ? banner.id : '';
+    if (!id.trim() || id.length > 100 || ids.has(id)) fail(400, 'Each homepage banner needs a unique identifier');
+    ids.add(id);
+    const textLimits: Record<string, number> = { kicker: 100, edition: 100, title: 140, subtitle: 600, image: 2000, ctaText: 80, secondaryCta: 80, ...(banner.imageAlt === undefined ? {} : { imageAlt: 500 }) };
+    for (const [field, maxLength] of Object.entries(textLimits)) {
+      if (typeof banner[field] !== 'string' || (banner[field] as string).length > maxLength) fail(400, `Homepage banner ${field} is invalid`);
+    }
+    for (const field of ['startsAt', 'endsAt']) {
+      if (banner[field] !== undefined && banner[field] !== '' && (typeof banner[field] !== 'string' || (banner[field] as string).length > 40 || !Number.isFinite(Date.parse(banner[field] as string)))) {
+        fail(400, `Homepage banner ${field} must be a valid date and time`);
+      }
+    }
+    if (typeof banner.startsAt === 'string' && banner.startsAt && typeof banner.endsAt === 'string' && banner.endsAt && Date.parse(banner.endsAt) <= Date.parse(banner.startsAt)) {
+      fail(400, 'Homepage banner end time must be after its start time');
+    }
+    if (!(banner.title as string).trim() || !(banner.image as string).trim() || !categories.has(String(banner.category)) || !categories.has(String(banner.secondaryCategory)) || typeof banner.active !== 'boolean') {
+      fail(400, 'Homepage banner title, image, categories, or visibility are invalid');
+    }
+  }
+
+  database.exec('BEGIN IMMEDIATE');
+  try {
+    database.prepare('DELETE FROM home_banners').run();
+    const insert = database.prepare('INSERT INTO home_banners (id, position, data_json) VALUES (?, ?, ?)');
+    bannerList.forEach((banner, index) => insert.run(String((banner as Record<string, unknown>).id), index, JSON.stringify(banner)));
+    recordAdminActivity(req, 'update', 'home_banners', '', { count: bannerList.length });
+    database.exec('COMMIT');
+  } catch (error) {
+    database.exec('ROLLBACK');
+    throw error;
+  }
+  res.json({ banners: bannerList });
+}));
+
+app.put('/api/admin/content/settings', ...authenticate((req, res) => {
+  if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
+  const content = req.body?.content;
+  if (!content || typeof content !== 'object' || Array.isArray(content)) fail(400, 'CMS content must be a valid object');
+  const sections = ['about', 'contact', 'faq', 'policies', 'footer', 'seo'];
+  if (sections.some((section) => !(content as Record<string, unknown>)[section] || typeof (content as Record<string, unknown>)[section] !== 'object' || Array.isArray((content as Record<string, unknown>)[section]))) fail(400, 'One or more CMS sections are missing or invalid');
+  const cms = content as Record<string, unknown>;
+  const requireTextFields = (object: unknown, fields: string[], maxLength: number) => {
+    if (!object || typeof object !== 'object' || Array.isArray(object)) return false;
+    const value = object as Record<string, unknown>;
+    return fields.every((field) => typeof value[field] === 'string' && (value[field] as string).length <= maxLength);
+  };
+  if (!requireTextFields(cms.about, ['eyebrow', 'title', 'description', 'promiseTitle', 'promiseDescription'], 5000) ||
+    !requireTextFields(cms.contact, ['eyebrow', 'title', 'description', 'email', 'hours', 'location', 'conciergeTitle', 'conciergeDescription'], 2000) ||
+    !requireTextFields(cms.faq, ['eyebrow', 'title', 'description'], 1000) ||
+    !requireTextFields(cms.footer, ['description', 'email', 'newsletterTitle', 'newsletterDescription'], 2000) ||
+    !requireTextFields(cms.seo, ['title', 'description', 'keywords', 'ogTitle', 'ogDescription'], 1000)) fail(400, 'CMS text fields are invalid or too long');
+  const faq = cms.faq as { items?: unknown };
+  if (!Array.isArray(faq.items) || faq.items.length > 100 || faq.items.some((item: unknown) => !item || typeof item !== 'object' || !requireTextFields(item, ['category', 'question', 'answer'], 4000))) fail(400, 'FAQ entries are invalid');
+  const policies = cms.policies as Record<string, unknown>;
+  for (const policyKey of ['shipping', 'returns', 'privacy', 'terms']) {
+    if (!requireTextFields(policies[policyKey], ['title', 'summary', 'body'], 25000)) fail(400, `The ${policyKey} policy is invalid`);
+  }
+  const storySections = (content as Record<string, unknown>).storySections;
+  const allowedStoryKinds = new Set(['featured-collections', 'category-highlights', 'editorial', 'promotion', 'featured-products', 'testimonial']);
+  if (storySections !== undefined && (!Array.isArray(storySections) || storySections.length > 30 || storySections.some((item) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return true;
+    const section = item as Record<string, unknown>;
+    return typeof section.id !== 'string' || section.id.length > 100 || !allowedStoryKinds.has(String(section.kind)) ||
+      typeof section.eyebrow !== 'string' || section.eyebrow.length > 120 ||
+      typeof section.heading !== 'string' || section.heading.trim().length === 0 || section.heading.length > 180 ||
+      typeof section.description !== 'string' || section.description.length > 2000 ||
+      typeof section.image !== 'string' || section.image.length > 2000 ||
+      (section.imageAlt !== undefined && (typeof section.imageAlt !== 'string' || section.imageAlt.length > 500)) ||
+      typeof section.ctaLabel !== 'string' || section.ctaLabel.length > 80 ||
+      typeof section.category !== 'string' || section.category.length > 80 ||
+      typeof section.active !== 'boolean';
+  }))) fail(400, 'Story Builder sections are invalid');
+  const serialized = JSON.stringify(content);
+  if (serialized.length > 200000) fail(400, 'CMS content exceeds the allowed size');
+  const previous = readStoreCmsRecord();
+  const publish = req.body?.publish === true;
+  const nextRecord = { draft: content, published: publish ? content : previous.published, updatedAt: new Date().toISOString() };
+  database.exec('BEGIN IMMEDIATE');
+  try {
+    database.prepare(`INSERT INTO cms_settings (id, content_json) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET content_json = excluded.content_json, updated_at = CURRENT_TIMESTAMP`).run('store_content', JSON.stringify(nextRecord));
+    recordAdminActivity(req, publish ? 'publish' : 'save_draft', 'store_content', 'store_content', { sections });
+    database.exec('COMMIT');
+  } catch (error) {
+    database.exec('ROLLBACK');
+    throw error;
+  }
+  res.json({ content, ...nextRecord });
+}));
+
+app.get('/api/admin/content/brand-story', ...authenticate((req, res) => {
+  if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
+  const row = readCmsSettings('brand_story');
+  let record: { draft: typeof emptyBrandStory; published: typeof emptyBrandStory | null; updatedAt: string | null } = { draft: emptyBrandStory, published: null, updatedAt: null };
+  if (row) {
+    try { record = { ...record, ...JSON.parse(row.content_json) }; } catch { /* use safe empty content */ }
+  }
+  res.json(record);
+}));
+
+app.get('/api/content/brand-story', (_req, res) => {
+  const row = readCmsSettings('brand_story');
+  if (!row) return res.json({ story: null });
+  try {
+    const record = JSON.parse(row.content_json) as { published?: typeof emptyBrandStory | null };
+    return res.json({ story: record.published || null });
+  } catch {
+    return res.json({ story: null });
+  }
+});
+
+app.put('/api/admin/content/brand-story', ...authenticate((req, res) => {
+  if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
+  const story = req.body?.story as unknown;
+  if (!validBrandStory(story)) fail(400, 'Brand story content is invalid');
+  const serializedStory = JSON.stringify(story);
+  if (serializedStory.length > 100000) fail(400, 'Brand story exceeds the allowed size');
+  const publish = req.body?.publish === true;
+  const previous = readCmsSettings('brand_story');
+  let record: { draft: typeof emptyBrandStory; published: typeof emptyBrandStory | null; updatedAt: string | null } = { draft: emptyBrandStory, published: null, updatedAt: null };
+  if (previous) {
+    try { record = { ...record, ...JSON.parse(previous.content_json) }; } catch { /* replace malformed content with validated draft */ }
+  }
+  const nextRecord = { draft: story, published: publish ? story : record.published, updatedAt: new Date().toISOString() };
+  database.exec('BEGIN IMMEDIATE');
+  try {
+    database.prepare(`INSERT INTO cms_settings (id, content_json) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET content_json = excluded.content_json, updated_at = CURRENT_TIMESTAMP`).run('brand_story', JSON.stringify(nextRecord));
+    recordAdminActivity(req, publish ? 'publish' : 'save_draft', 'brand_story', 'brand_story');
+    database.exec('COMMIT');
+  } catch (error) {
+    database.exec('ROLLBACK');
+    throw error;
+  }
+  res.json(nextRecord);
+}));
+
+app.post('/api/contact/inquiries', (req, res) => {
+  const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const subject = typeof req.body?.subject === 'string' ? req.body.subject.trim() : '';
+  const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
+  if (name.length < 2 || name.length > 100) fail(400, 'Enter a name between 2 and 100 characters');
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) fail(400, 'Enter a valid email address');
+  if (!subject || subject.length > 150) fail(400, 'Enter an inquiry subject');
+  if (message.length < 10 || message.length > 5000) fail(400, 'Your message must be between 10 and 5000 characters');
+  const id = randomUUID();
+  database.prepare('INSERT INTO contact_inquiries (id, name, email, subject, message) VALUES (?, ?, ?, ?, ?)').run(id, name, email, subject, message);
+  res.status(201).json({ success: true, inquiryId: id });
+});
+
+app.get('/api/admin/contact-inquiries', ...authenticate((req, res) => {
+  if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
+  const inquiries = database.prepare('SELECT id, name, email, subject, message, status, created_at AS createdAt FROM contact_inquiries ORDER BY created_at DESC LIMIT 200').all();
+  res.json({ inquiries });
+}));
+
+const staffMemberFromRow = (row: Record<string, unknown>) => {
+  const role = staffRoleSet.has(String(row.staff_role) as StaffRole) ? String(row.staff_role) as StaffRole : 'super_admin';
+  let requested: CmsPermission[] = [];
+  try { const parsed = JSON.parse(String(row.permissions_json || '[]')); if (Array.isArray(parsed)) requested = parsed.filter((p): p is CmsPermission => allStaffPermissions.includes(p)); } catch { requested = []; }
+  const permissions = requested.length ? rolePermissionDefaults[role].filter((p) => requested.includes(p)) : role === 'super_admin' ? rolePermissionDefaults[role] : [];
+  return {
+    id: String(row.id), name: String(row.name), email: String(row.email), phone: String(row.phone || ''),
+    staffRole: role, permissions, isActive: Number(row.is_active ?? 1) !== 0,
+    lastLoginAt: sqliteTimestampToIso(String(row.last_login_at || '')) || undefined,
+    activityCount: Number(row.activity_count || 0), lastActivityAt: sqliteTimestampToIso(String(row.last_activity_at || '')) || undefined,
+    createdAt: sqliteTimestampToIso(String(row.created_at || '')) || String(row.created_at || ''),
+    updatedAt: sqliteTimestampToIso(String(row.updated_at || '')) || undefined
+  };
+};
+const staffRows = () => database.prepare(`
+  SELECT u.id, u.name, u.email, u.phone, u.staff_role, u.permissions_json, u.is_active,
+         u.last_login_at, u.created_at, u.updated_at,
+         COUNT(a.id) AS activity_count, MAX(a.created_at) AS last_activity_at
+  FROM users u LEFT JOIN audit_logs a ON a.actor_id = u.id
+  WHERE u.role = 'admin' GROUP BY u.id ORDER BY u.created_at ASC
+`).all() as Record<string, unknown>[];
+const requireSuperAdmin = (req: AuthenticatedRequest) => {
+  if (req.user?.role !== 'admin' || (req.user.staffRole || 'super_admin') !== 'super_admin') fail(403, 'Super Admin access is required');
+};
+
+app.get('/api/admin/staff', ...authenticate((req, res) => {
+  requireSuperAdmin(req);
+  res.json({ staff: staffRows().map(staffMemberFromRow), roles: Object.keys(rolePermissionDefaults), permissions: allStaffPermissions });
+}));
+app.post('/api/admin/staff', ...authenticate(async (req, res) => {
+  requireSuperAdmin(req);
+  const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const phone = typeof req.body.phone === 'string' ? req.body.phone.replace(/\D/g, '') : '';
+  const password = typeof req.body.password === 'string' ? req.body.password : '';
+  const staffRole = req.body.staffRole as StaffRole;
+  if (name.length < 2 || name.length > 100) fail(400, 'Name must be 2–100 characters');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) fail(400, 'Enter a valid administrator email');
+  if (phone && !/^\d{10,15}$/.test(phone)) fail(400, 'Enter a valid phone number');
+  if (password.length < 12 || password.length > 1024) fail(400, 'Initial password must be at least 12 characters');
+  if (!staffRoleSet.has(staffRole)) fail(400, 'Choose a valid staff role');
+  if (database.prepare('SELECT 1 FROM users WHERE email = ? COLLATE NOCASE').get(email)) fail(409, 'An account already uses that email');
+  const id = randomUUID();
+  const hash = await passwordHash(password);
+  const now = new Date().toISOString();
+  database.prepare(`INSERT INTO users (id, name, email, phone, password_hash, role, staff_role, permissions_json, club_tier, addresses_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'admin', ?, ?, 'Silver', '[]', ?, ?)`)
+    .run(id, name, email, phone, hash, staffRole, JSON.stringify(rolePermissionDefaults[staffRole]), now, now);
+  recordAdminActivity(req, 'staff.created', 'admin_account', id, { staffRole });
+  res.status(201).json({ staff: staffMemberFromRow(staffRows().find((row) => row.id === id)!) });
+}));
+app.patch('/api/admin/staff/:staffId', ...authenticate((req, res) => {
+  requireSuperAdmin(req);
+  const target = database.prepare('SELECT id, name, email, phone, role, staff_role, permissions_json, is_active FROM users WHERE id = ? AND role = \'admin\'').get(req.params.staffId) as { id:string;name:string;email:string;phone:string|null;role:string;staff_role:string|null;permissions_json:string|null;is_active:number|null } | undefined;
+  if (!target) return fail(404, 'Administrator account not found');
+  const nextRole = (req.body.staffRole ?? target.staff_role ?? 'super_admin') as StaffRole;
+  if (!staffRoleSet.has(nextRole)) fail(400, 'Choose a valid staff role');
+  const isActive = typeof req.body.isActive === 'boolean' ? req.body.isActive : Number(target.is_active ?? 1) !== 0;
+  const name = typeof req.body.name === 'string' ? req.body.name.trim() : String(target.name);
+  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : String(target.email);
+  const phone = typeof req.body.phone === 'string' ? req.body.phone.replace(/\D/g, '') : String(target.phone || '');
+  if (name.length < 2 || name.length > 100 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254 || (phone && !/^\d{10,15}$/.test(phone))) fail(400, 'Administrator details are invalid');
+  const supplied = req.body.permissions;
+  let permissions: CmsPermission[] = [];
+  if (supplied !== undefined) {
+    if (!Array.isArray(supplied) || supplied.some((p: unknown) => !allStaffPermissions.includes(p as CmsPermission))) fail(400, 'Permission list is invalid');
+    permissions = Array.from(new Set(supplied as CmsPermission[]));
+    if (permissions.some((p) => !rolePermissionDefaults[nextRole].includes(p))) fail(400, 'Selected permissions exceed this role’s allowed access');
+    if (nextRole === 'super_admin' && permissions.length !== rolePermissionDefaults.super_admin.length) fail(400, 'Super Admin retains the complete permission set');
+  } else {
+    try { permissions = JSON.parse(String(target.permissions_json || '[]')) as CmsPermission[]; } catch { permissions = []; }
+    if (nextRole !== target.staff_role) permissions = rolePermissionDefaults[nextRole];
+  }
+  const currentRole = String(target.staff_role || 'super_admin');
+  const currentActive = Number(target.is_active ?? 1) !== 0;
+  if (target.id === req.user!.id && (nextRole !== 'super_admin' || !isActive)) {
+    const otherRoot = database.prepare("SELECT COUNT(*) AS count FROM users WHERE role='admin' AND staff_role='super_admin' AND is_active=1 AND id<>?").get(String(target.id)) as { count: number };
+    if (!otherRoot.count) fail(409, 'You cannot remove your own access as the final active Super Admin');
+  }
+  if ((currentRole === 'super_admin' && currentActive) && (nextRole !== 'super_admin' || !isActive)) {
+    const roots = database.prepare("SELECT COUNT(*) AS count FROM users WHERE role='admin' AND staff_role='super_admin' AND is_active=1 AND id<>?").get(String(target.id)) as { count: number };
+    if (!roots.count) fail(409, 'At least one active Super Admin account must remain');
+  }
+  const collision = database.prepare('SELECT id FROM users WHERE email = ? COLLATE NOCASE AND id <> ?').get(email, target.id);
+  if (collision) fail(409, 'Another account already uses that email');
+  database.prepare('UPDATE users SET name=?, email=?, phone=?, staff_role=?, permissions_json=?, is_active=?, updated_at=? WHERE id=?')
+    .run(name, email, phone, nextRole, JSON.stringify(permissions), isActive ? 1 : 0, new Date().toISOString(), target.id);
+  if (!isActive) database.prepare('DELETE FROM sessions WHERE user_id = ?').run(target.id);
+  recordAdminActivity(req, 'staff.updated', 'admin_account', String(target.id), { staffRole: nextRole, isActive, permissionCount: permissions.length });
+  const row = staffRows().find((item) => item.id === target!.id)!;
+  res.json({ staff: staffMemberFromRow(row) });
+}));
+
+const insertAdminNotification = (eventKey: string, type: string, severity: string, title: string, message: string, targetTab: string, entityId: string, createdAt?: string) => {
+  database.prepare(`INSERT OR IGNORE INTO admin_notifications (id,event_key,type,severity,title,message,target_tab,entity_id,created_at) VALUES (?,?,?,?,?,?,?,?,?)`)
+    .run(randomUUID(), eventKey, type, severity, title, message, targetTab, entityId, createdAt || new Date().toISOString());
+};
+const collectAdminNotifications = () => {
+  const orderRows = database.prepare("SELECT id, status, created_at FROM orders WHERE created_at >= datetime('now','-30 days') ORDER BY created_at DESC LIMIT 100").all() as {id:string;status:string;created_at:string}[];
+  for (const row of orderRows) insertAdminNotification(`order:${row.id}`, 'new_order', 'info', 'New order received', `Order ${row.id} was placed.`, 'orders', row.id, row.created_at);
+  const customers = database.prepare("SELECT id, created_at FROM users WHERE role='customer' AND created_at >= datetime('now','-30 days') ORDER BY created_at DESC LIMIT 100").all() as {id:string;created_at:string}[];
+  for (const row of customers) insertAdminNotification(`customer:${row.id}`, 'new_customer', 'info', 'New customer account', 'A new customer account was created.', 'customers', row.id, row.created_at);
+  const inquiries = database.prepare("SELECT id, subject, created_at FROM contact_inquiries WHERE created_at >= datetime('now','-30 days') ORDER BY created_at DESC LIMIT 100").all() as {id:string;subject:string;created_at:string}[];
+  for (const row of inquiries) insertAdminNotification(`inquiry:${row.id}`, 'contact_inquiry', 'info', 'New contact inquiry', row.subject || 'A customer sent a message.', 'contact', row.id, row.created_at);
+  const products = database.prepare('SELECT id,name,stock,low_stock_threshold,updated_at FROM products WHERE COALESCE(is_active,1)=1').all() as {id:string;name:string;stock:number;low_stock_threshold:number;updated_at:string}[];
+  for (const row of products) {
+    const out = row.stock <= 0;
+    const low = !out && row.stock <= (row.low_stock_threshold || 10);
+    if (out || low) insertAdminNotification(`stock:${row.id}:${out?'out':'low'}:${row.updated_at}`, out?'out_of_stock':'low_stock', out?'critical':'warning', out?'Product out of stock':'Low stock alert', `${row.name}: ${row.stock} remaining.`, 'inventory', row.id, row.updated_at);
+  }
+  const returns = database.prepare("SELECT id,order_id,status,created_at FROM return_requests WHERE created_at >= datetime('now','-30 days') ORDER BY created_at DESC LIMIT 100").all() as {id:string;order_id:string;status:string;created_at:string}[];
+  for (const row of returns) insertAdminNotification(`return:${row.id}:${row.status}`, 'return_requested', 'warning', 'Return request updated', `Return ${row.id} for order ${row.order_id} is ${row.status}.`, 'returns', row.id, row.created_at);
+  const refundRows = database.prepare("SELECT id,order_id,status,updated_at FROM refund_records WHERE updated_at >= datetime('now','-30 days') ORDER BY updated_at DESC LIMIT 100").all() as {id:string;order_id:string;status:string;updated_at:string}[];
+  for (const row of refundRows) insertAdminNotification(`refund:${row.id}:${row.status}`, 'refund_status', row.status === 'failed'?'critical':'info', 'Refund status updated', `Refund for order ${row.order_id}: ${row.status}.`, 'refunds', row.id, row.updated_at);
+};
+app.get('/api/admin/notifications', ...authenticate((req, res) => {
+  collectAdminNotifications();
+  const rows = database.prepare(`SELECT n.*, CASE WHEN r.notification_id IS NULL THEN 0 ELSE 1 END AS is_read FROM admin_notifications n LEFT JOIN admin_notification_reads r ON r.notification_id=n.id AND r.user_id=? ORDER BY n.created_at DESC LIMIT 100`).all(req.user!.id) as Record<string, unknown>[];
+  const permissions = new Set(effectiveStaffPermissions(req.user!));
+  const targetPermission: Record<string,CmsPermission> = {orders:'manage_orders',customers:'manage_customers',contact:'manage_contact',inventory:'manage_inventory',returns:'manage_returns',refunds:'manage_refunds'};
+  const visibleRows = rows.filter((row) => permissions.has(targetPermission[String(row.target_tab)]));
+  res.json({ notifications: visibleRows.map((row) => ({ id: row.id, eventKey: row.event_key, type: row.type, severity: row.severity, title: row.title, message: row.message, targetTab: row.target_tab, entityId: row.entity_id, isRead: Boolean(row.is_read), createdAt: row.created_at })), unreadCount: visibleRows.filter((row) => !row.is_read).length });
+}));
+app.patch('/api/admin/notifications/:notificationId/read', ...authenticate((req, res) => {
+  const exists = database.prepare('SELECT id FROM admin_notifications WHERE id=?').get(req.params.notificationId);
+  if (!exists) fail(404, 'Notification not found');
+  database.prepare('INSERT OR IGNORE INTO admin_notification_reads (notification_id,user_id) VALUES (?,?)').run(req.params.notificationId, req.user!.id);
+  res.json({ success: true });
+}));
+app.post('/api/admin/notifications/read-all', ...authenticate((req, res) => {
+  collectAdminNotifications();
+  database.prepare('INSERT OR IGNORE INTO admin_notification_reads (notification_id,user_id) SELECT id, ? FROM admin_notifications').run(req.user!.id);
+  res.json({ success: true });
+}));
+
+app.get('/api/admin/search', ...authenticate((req, res) => {
+  const query = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 80) : '';
+  if (query.length < 2) return res.json({ results: [] });
+  const safeQuery = query.replace(/[\\%_]/g, '');
+  if (safeQuery.length < 2) return res.json({ results: [] });
+  const like = `%${safeQuery}%`;
+  const permissions = new Set(effectiveStaffPermissions(req.user!));
+  const results: {type:string;id:string;label:string;detail?:string;targetTab:string}[] = [];
+  if (permissions.has('manage_products')) for (const row of database.prepare('SELECT id,name,sku FROM products WHERE name LIKE ? OR id LIKE ? OR sku LIKE ? LIMIT 8').all(like,like,like) as {id:string;name:string;sku:string|null}[]) results.push({type:'Product',id:row.id,label:row.name,detail:row.sku||row.id,targetTab:'products'});
+  if (permissions.has('manage_orders')) for (const row of database.prepare('SELECT id,status FROM orders WHERE id LIKE ? ORDER BY created_at DESC LIMIT 8').all(like) as {id:string;status:string}[]) results.push({type:'Order',id:row.id,label:`Order ${row.id}`,detail:row.status,targetTab:'orders'});
+  if (permissions.has('manage_customers')) for (const row of database.prepare("SELECT id,name FROM users WHERE role='customer' AND (name LIKE ? OR id LIKE ?) LIMIT 8").all(like,like) as {id:string;name:string}[]) results.push({type:'Customer',id:row.id,label:row.name,detail:row.id,targetTab:'customers'});
+  if (permissions.has('manage_coupons')) for (const row of database.prepare('SELECT code FROM coupons WHERE code LIKE ? LIMIT 8').all(like) as {code:string}[]) results.push({type:'Coupon',id:row.code,label:row.code,targetTab:'coupons'});
+  if (permissions.has('manage_contact')) for (const row of database.prepare('SELECT id,subject,status FROM contact_inquiries WHERE subject LIKE ? OR id LIKE ? LIMIT 8').all(like,like) as {id:string;subject:string;status:string}[]) results.push({type:'Inquiry',id:row.id,label:row.subject||'Contact inquiry',detail:row.status,targetTab:'contact'});
+  if (permissions.has('manage_cms')) for (const row of database.prepare('SELECT key FROM cms_settings WHERE key LIKE ? LIMIT 8').all(like) as {key:string}[]) results.push({type:'CMS content',id:row.key,label:row.key,targetTab:'siteContent'});
+  res.json({results:results.slice(0,30)});
+}));
 
 app.get('/api/admin/audit-logs', ...authenticate((req, res) => {
   if (req.user!.role !== 'admin') {
@@ -982,7 +1696,7 @@ app.get('/api/admin/audit-logs', ...authenticate((req, res) => {
   const rows = database
     .prepare(`
       SELECT id, actor_id, actor_name, actor_role, action,
-             target_entity, target_id, metadata_json, created_at
+             target_entity, target_id, metadata_json, ip_address, created_at
       FROM audit_logs
       ${where}
       ORDER BY created_at DESC
@@ -997,6 +1711,7 @@ app.get('/api/admin/audit-logs', ...authenticate((req, res) => {
       target_entity: string;
       target_id: string;
       metadata_json: string;
+      ip_address: string;
       created_at: string;
     }>;
 
@@ -1020,8 +1735,9 @@ app.get('/api/admin/audit-logs', ...authenticate((req, res) => {
       action: row.action,
       targetEntity: row.target_entity,
       targetId: row.target_id,
+      result: row.action === 'login.failed' ? 'failure' : 'success',
       metadata,
-      ipAddress: '',
+      ipAddress: row.ip_address || '',
       createdAt: row.created_at
     };
   });
@@ -1351,15 +2067,40 @@ app.post('/api/auth/login', authRateLimit, asyncRoute(async (req, res) => {
     'SELECT * FROM users WHERE email = ? COLLATE NOCASE OR (? <> \'\' AND phone = ?)'
   ).get(normalizedEmail, normalizedPhone, normalizedPhone) as Record<string, unknown> | undefined;
   if (row === undefined) return fail(401, 'The email/phone or password is incorrect');
-  if (!(await verifyPassword(password, String(row.password_hash)))) return fail(401, 'The email/phone or password is incorrect');
+  if (!(await verifyPassword(password, String(row.password_hash)))) {
+    if (row.role === 'admin') database.prepare(`INSERT INTO audit_logs (id, actor_id, actor_name, actor_role, action, target_entity, target_id, metadata_json, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(randomUUID(), String(row.id), String(row.name), String(row.staff_role || 'super_admin'), 'login.failed', 'admin_account', String(row.id), '{}', String(req.ip || ''));
+    return fail(401, 'The email/phone or password is incorrect');
+  }
   if (Number(row.is_active ?? 1) === 0) {
     return fail(403, 'Your account has been deactivated. Please contact VYORA support for assistance.');
   }
+  database.prepare('UPDATE users SET last_login_at = ? WHERE id = ?').run(new Date().toISOString(), String(row.id));
+  if (row.role === 'admin') {
+    database.prepare(`INSERT INTO audit_logs (id, actor_id, actor_name, actor_role, action, target_entity, target_id, metadata_json, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(randomUUID(), String(row.id), String(row.name), String(row.staff_role || 'super_admin'), 'login.success', 'admin_account', String(row.id), '{}', String(req.ip || ''));
+  }
   issueSession(String(row.id), req, res);
-  res.json({ user: publicUser(row) });
+  res.json({ user: publicUser(userById(String(row.id))!) });
 }));
 
 app.get('/api/auth/me', ...authenticate((req, res) => res.json({ user: req.user })));
+
+app.post('/api/auth/password', ...authenticate(async (req, res) => {
+  const currentPassword = typeof req.body.currentPassword === 'string' ? req.body.currentPassword : '';
+  const newPassword = typeof req.body.newPassword === 'string' ? req.body.newPassword : '';
+  if (!currentPassword || newPassword.length < 12 || newPassword.length > 1024) fail(400, 'Enter your current password and a new password of at least 12 characters');
+  const row = userById(req.user!.id);
+  if (!row) return fail(403, 'Current password is incorrect');
+  if (!(await verifyPassword(currentPassword, String(row.password_hash)))) fail(403, 'Current password is incorrect');
+  if (await verifyPassword(newPassword, String(row.password_hash))) fail(400, 'Choose a password different from your current password');
+  const newHash = await passwordHash(newPassword);
+  database.prepare('UPDATE users SET password_hash=?, updated_at=? WHERE id=?').run(newHash, new Date().toISOString(), req.user!.id);
+  database.prepare('DELETE FROM sessions WHERE user_id=?').run(req.user!.id);
+  issueSession(req.user!.id, req, res);
+  if (req.user!.role === 'admin') recordAdminActivity(req, 'password.changed', 'admin_account', req.user!.id);
+  res.json({ success: true });
+}));
 
 app.post('/api/auth/logout', (req, res) => {
   const rawCookie = req.headers.cookie || '';
@@ -1624,6 +2365,7 @@ const recordShipmentHistory = (entry: {
 
 app.get('/api/orders', ...authenticate((req, res) => {
   if (req.user!.role === 'admin') {
+    assertStaffPermission(req, 'manage_orders');
     const rows = database.prepare(`
       SELECT o.data_json, o.created_at, u.name AS user_name, u.email AS user_email, u.phone AS user_phone
       FROM orders o
@@ -1651,6 +2393,7 @@ app.get('/api/orders', ...authenticate((req, res) => {
 }));
 
 app.get('/api/orders/:orderId', ...authenticate((req, res) => {
+  if (req.user!.role === 'admin') assertStaffPermission(req, 'manage_orders');
   const row = database.prepare(`
     SELECT o.user_id, o.data_json, o.created_at, u.name AS user_name, u.email AS user_email, u.phone AS user_phone
     FROM orders o
@@ -1992,13 +2735,14 @@ const humanizeOrderStatus = (status: string) =>
   status.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 
 app.patch('/api/orders/:orderId/status', ...authenticate((req, res) => {
-  if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
+  assertStaffPermission(req, 'manage_orders');
   const nextStatus = req.body.status as OrderStatus;
   const note = typeof req.body.note === 'string' ? req.body.note.trim().slice(0, 300) : '';
   if (!orderStatuses.includes(nextStatus)) fail(400, 'Invalid order status');
 
   const nowIso = new Date().toISOString();
   let updatedOrder: Order | null = null;
+  let previousStatusForAudit: OrderStatus | null = null;
 
   database.exec('BEGIN IMMEDIATE');
   try {
@@ -2030,6 +2774,7 @@ app.patch('/api/orders/:orderId/status', ...authenticate((req, res) => {
     }
 
     const previousStatus = order.status;
+    previousStatusForAudit = previousStatus;
     if (nextStatus === 'cancelled') {
       if (!order.stockRestored) {
         const restoreStock = database.prepare('UPDATE products SET stock = stock + ? WHERE id = ?');
@@ -2134,6 +2879,8 @@ app.patch('/api/orders/:orderId/status', ...authenticate((req, res) => {
     throw error;
   }
 
+  recordAdminActivity(req, 'order.status_updated', 'order', req.params.orderId, { previousStatus: previousStatusForAudit, status: nextStatus });
+  recordAdminActivity(req, 'shipment.updated', 'order', req.params.orderId, { status: updatedOrder?.shipment?.shipmentStatus || '' });
   res.json({ order: updatedOrder });
 }));
 
@@ -2154,7 +2901,7 @@ const allowedShipmentTransitions: Record<ShipmentStatus, ShipmentStatus[]> = {
 };
 
 app.patch('/api/orders/:orderId/shipment', ...authenticate((req, res) => {
-  if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
+  assertStaffPermission(req, 'manage_shipping');
   const body = req.body as OrderShipmentInfo;
   const nowIso = new Date().toISOString();
   let updatedOrder: Order | null = null;
@@ -2335,7 +3082,7 @@ app.get('/api/admin/summary', ...authenticate((req, res) => {
     products: products.length,
     orders: orders.length,
     revenue: nonCancelled.reduce((total, order) => total + order.total, 0),
-    recentOrders: orders.slice(0, 6),
+    recentOrders: effectiveStaffPermissions(req.user!).includes('manage_orders') ? orders.slice(0, 6) : [],
     lowStock: products
       .filter((product) => product.stockQuantity <= (product.lowStockThreshold ?? 10))
       .sort((a, b) => a.stockQuantity - b.stockQuantity)
@@ -2347,7 +3094,7 @@ app.get('/api/admin/analytics', ...authenticate((req, res) => {
   if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
 
   const rawRange = String(req.query.range || '30d');
-  const range: AnalyticsRange = ['7d', '30d', '90d', '1y', 'all', 'custom'].includes(rawRange)
+  const range: AnalyticsRange = ['today', 'yesterday', '7d', '30d', '90d', 'thisMonth', 'previousMonth', 'thisYear', '1y', 'all', 'custom'].includes(rawRange)
     ? (rawRange as AnalyticsRange)
     : '30d';
   const rawGranularity = String(req.query.granularity || 'daily');
@@ -2361,13 +3108,31 @@ app.get('/api/admin/analytics', ...authenticate((req, res) => {
   const queryStart = typeof req.query.startDate === 'string' ? req.query.startDate.trim() : '';
   const queryEnd = typeof req.query.endDate === 'string' ? req.query.endDate.trim() : '';
 
-  if (range === 'custom' && queryStart) {
-    const parsedStart = Date.parse(`${queryStart}T00:00:00.000Z`);
-    if (!Number.isNaN(parsedStart)) startMs = parsedStart;
+  if (range === 'custom') {
+    const parseDateOnly = (value: string) => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+      const parsed = Date.parse(`${value}T00:00:00.000Z`);
+      return Number.isNaN(parsed) || new Date(parsed).toISOString().slice(0, 10) !== value ? null : parsed;
+    };
+    const parsedStart = parseDateOnly(queryStart) ?? fail(400, 'A valid custom start date is required');
+    startMs = parsedStart;
     if (queryEnd) {
-      const parsedEnd = Date.parse(`${queryEnd}T23:59:59.999Z`);
-      if (!Number.isNaN(parsedEnd)) endMs = parsedEnd;
+      const parsedEnd = parseDateOnly(queryEnd) ?? fail(400, 'Custom end date must be valid');
+      if (parsedEnd < parsedStart) fail(400, 'Custom end date must not precede the start date');
+      endMs = parsedEnd + 86400000 - 1;
     }
+  } else if (range === 'today') {
+    startMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  } else if (range === 'yesterday') {
+    startMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1);
+    endMs = startMs + 86400000 - 1;
+  } else if (range === 'thisMonth') {
+    startMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+  } else if (range === 'previousMonth') {
+    startMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1);
+    endMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1) - 1;
+  } else if (range === 'thisYear') {
+    startMs = Date.UTC(now.getUTCFullYear(), 0, 1);
   } else if (range === '7d') {
     startMs = now.getTime() - 7 * 86400000;
   } else if (range === '30d') {
@@ -2450,8 +3215,29 @@ app.get('/api/admin/analytics', ...authenticate((req, res) => {
 
   if (startMs !== null && endMs > startMs) {
     const duration = endMs - startMs;
-    const prevStart = startMs - duration;
-    const prevEnd = startMs - 1;
+    let prevStart = startMs - duration;
+    let prevEnd = startMs - 1;
+    if (range === 'today' || range === 'yesterday') {
+      prevStart = startMs - 86400000;
+      prevEnd = endMs - 86400000;
+    } else if (range === 'thisMonth') {
+      prevStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1);
+      const previousMonthEnd = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1) - 1;
+      prevEnd = Math.min(prevStart + duration, previousMonthEnd);
+    } else if (range === 'previousMonth') {
+      prevStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 2, 1);
+      prevEnd = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1) - 1;
+    } else if (range === 'thisYear') {
+      prevStart = Date.UTC(now.getUTCFullYear() - 1, 0, 1);
+      const endDate = new Date(endMs);
+      const previousMonthLastDay = new Date(Date.UTC(now.getUTCFullYear() - 1, endDate.getUTCMonth() + 1, 0)).getUTCDate();
+      prevEnd = Date.UTC(
+        now.getUTCFullYear() - 1,
+        endDate.getUTCMonth(),
+        Math.min(endDate.getUTCDate(), previousMonthLastDay),
+        endDate.getUTCHours(), endDate.getUTCMinutes(), endDate.getUTCSeconds(), endDate.getUTCMilliseconds()
+      );
+    }
     const prevPeriodOrders = allOrders.filter(({ order }) => {
       const ms = parseOrderTimeMs(order);
       return ms >= prevStart && ms <= prevEnd;
@@ -2504,7 +3290,13 @@ app.get('/api/admin/analytics', ...authenticate((req, res) => {
 
   // Pre-seed zeroed buckets for recent daily/monthly windows so charts always render cleanly
   if (granularity === 'daily') {
-    const days = range === '7d' ? 7 : range === '30d' ? 14 : 14;
+    const days = range === 'today' || range === 'yesterday' ? 1
+      : range === '7d' ? 7
+        : range === '30d' ? 30
+          : range === '90d' ? 90
+            : range === 'thisMonth' ? now.getUTCDate()
+              : range === 'previousMonth' ? new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 0)).getUTCDate()
+                : 14;
     for (let i = days - 1; i >= 0; i--) {
       const d = new Date(endMs - i * 86400000);
       const info = makeBucketInfo(d);
@@ -2650,6 +3442,9 @@ app.get('/api/admin/analytics', ...authenticate((req, res) => {
       .slice(0, 10)
   };
 
+  if (!effectiveStaffPermissions(req.user!).includes('manage_orders')) payload.recentOrders = [];
+  if (!effectiveStaffPermissions(req.user!).includes('manage_customers')) payload.recentCustomers = [];
+
   res.json(payload);
 }));
 
@@ -2780,6 +3575,7 @@ app.post('/api/admin/products', ...authenticate((req, res) => {
     database.exec('ROLLBACK');
     throw error;
   }
+  recordAdminActivity(req, 'product.created', 'product', saved.id, { productName: saved.name, category: saved.category, sku: saved.sku });
   res.status(201).json({ product: saved });
 }));
 
@@ -2923,10 +3719,12 @@ app.patch('/api/admin/products/:productId/threshold', ...authenticate((req, res)
 
 app.delete('/api/admin/products/:productId', ...authenticate((req, res) => {
   if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
+  const product = database.prepare('SELECT name,sku FROM products WHERE id=?').get(req.params.productId) as {name:string;sku:string|null}|undefined;
   database.prepare('DELETE FROM cart_items WHERE product_id = ?').run(req.params.productId);
   database.prepare('DELETE FROM wishlists WHERE product_id = ?').run(req.params.productId);
   const result = database.prepare('DELETE FROM products WHERE id = ?').run(req.params.productId);
   if (Number(result.changes) === 0) fail(404, 'Product not found');
+  recordAdminActivity(req, 'product.deleted', 'product', req.params.productId, { productName: product?.name || '', sku: product?.sku || '' });
   res.json({ success: true });
 }));
 
@@ -3055,6 +3853,7 @@ app.post('/api/admin/inventory/adjust', ...authenticate((req, res) => {
     database.exec('ROLLBACK');
     throw error;
   }
+  recordAdminActivity(req, 'inventory.adjusted', 'product', productId, { productName: logEntry?.productName, adjustment, reason, newQuantity: logEntry?.newQuantity });
 
   res.json({ product: updatedProduct, log: logEntry });
 }));
@@ -3496,6 +4295,7 @@ app.post('/api/admin/coupons', ...authenticate((req, res) => {
     }
     throw error;
   }
+  recordAdminActivity(req, 'coupon.created', 'coupon', coupon.code, { isActive: coupon.isActive !== false });
   res.status(201).json({ coupon });
 }));
 
@@ -3531,6 +4331,7 @@ app.put('/api/admin/coupons/:code', ...authenticate((req, res) => {
     nowIso,
     existing.code
   );
+  recordAdminActivity(req, 'coupon.updated', 'coupon', existing.code, { isActive: updated.isActive !== false });
   res.json({ coupon: updated });
 }));
 
@@ -3548,6 +4349,7 @@ app.patch('/api/admin/coupons/:code/status', ...authenticate((req, res) => {
   const updated: Coupon = { ...hydrated, isActive: req.body.isActive, updatedAt: nowIso };
   database.prepare('UPDATE coupons SET is_active = ?, updated_at = ?, data_json = ? WHERE code = ? COLLATE NOCASE')
     .run(req.body.isActive ? 1 : 0, nowIso, JSON.stringify(updated), existing.code);
+  recordAdminActivity(req, 'coupon.status_updated', 'coupon', existing.code, { isActive: req.body.isActive });
   res.json({ coupon: updated });
 }));
 
@@ -3555,6 +4357,7 @@ app.delete('/api/admin/coupons/:code', ...authenticate((req, res) => {
   if (req.user!.role !== 'admin') fail(403, 'Administrator access is required');
   const result = database.prepare('DELETE FROM coupons WHERE code = ? COLLATE NOCASE').run(req.params.code);
   if (Number(result.changes) === 0) fail(404, 'Coupon not found');
+  recordAdminActivity(req, 'coupon.deleted', 'coupon', req.params.code);
   res.json({ success: true });
 }));
 
@@ -3814,6 +4617,7 @@ app.get('/api/returns', ...authenticate((req, res) => {
 }));
 
 app.get('/api/returns/:returnId', ...authenticate((req, res) => {
+  if (req.user!.role === 'admin') assertStaffPermission(req, 'manage_returns');
   const rr = loadSingleReturnRequest(req.params.returnId);
   if (!rr || (req.user!.role !== 'admin' && rr.userId !== req.user!.id)) {
     return fail(404, 'Return request not found');
@@ -4114,6 +4918,7 @@ app.patch('/api/admin/returns/:returnId/status', ...authenticate((req, res) => {
     throw error;
   }
 
+  recordAdminActivity(req, 'return.status_updated', 'return_request', req.params.returnId, { status: nextStatus });
   res.json({ returnRequest: loadSingleReturnRequest(req.params.returnId) });
 }));
 
@@ -4264,6 +5069,7 @@ app.post('/api/admin/returns/:returnId/inspect', ...authenticate((req, res) => {
     throw error;
   }
 
+  recordAdminActivity(req, 'return.inspected', 'return_request', req.params.returnId, { itemCount: submittedItems.length });
   res.json({ returnRequest: loadSingleReturnRequest(req.params.returnId) });
 }));
 
@@ -4612,6 +5418,7 @@ app.post('/api/admin/refunds', ...authenticate(async (req, res) => {
     FROM refund_records rr LEFT JOIN users u ON u.id = rr.user_id WHERE rr.id = ?
   `).get(refundId) as RefundRecordDbRow;
 
+  recordAdminActivity(req, 'refund.created', 'refund', refundId, { status: savedRow.status, amount, method });
   res.status(201).json({ refund: mapRefundRecordRow(savedRow), idempotent: false });
 }));
 
@@ -4672,6 +5479,7 @@ app.patch('/api/admin/refunds/:refundId', ...authenticate((req, res) => {
     SELECT rr.*, u.name AS customer_name, u.email AS customer_email
     FROM refund_records rr LEFT JOIN users u ON u.id = rr.user_id WHERE rr.id = ?
   `).get(req.params.refundId) as RefundRecordDbRow;
+  recordAdminActivity(req, 'refund.status_updated', 'refund', req.params.refundId, { status: nextStatus });
   res.json({ refund: mapRefundRecordRow(updatedRow) });
 }));
 

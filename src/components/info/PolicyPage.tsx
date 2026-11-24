@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../../context/StoreContext';
 import { formatEstimatedDate, formatLocationLabel } from '../../data/locations';
+import { useCmsContent } from '../../hooks/useCmsContent';
 
 export type PolicyType = 'shipping' | 'returns' | 'privacy' | 'terms';
 
@@ -183,7 +184,17 @@ const POLICY_TABS: { id: PolicyType; label: string; icon: React.ReactNode }[] = 
 
 export const PolicyPage: React.FC<{ policyType: PolicyType }> = ({ policyType }) => {
   const { setActivePage, openCategoryPage, selectedLocation, requestLocationPicker } = useStore();
-  const doc = POLICY_DOCUMENTS[policyType] || POLICY_DOCUMENTS.shipping;
+  const cmsContent = useCmsContent();
+  const savedPolicy = cmsContent?.policies[policyType];
+  const staticDocument = POLICY_DOCUMENTS[policyType] || POLICY_DOCUMENTS.shipping;
+  const doc = savedPolicy ? {
+    ...staticDocument,
+    title: savedPolicy.title || staticDocument.title,
+    summary: savedPolicy.summary || staticDocument.summary,
+    sections: savedPolicy.body.trim()
+      ? savedPolicy.body.split(/\n\s*\n/).map((paragraph, index) => ({ heading: `Section ${index + 1}`, paragraphs: [paragraph] }))
+      : staticDocument.sections
+  } : staticDocument;
   const locationLabel = formatLocationLabel(selectedLocation);
   const estDate = formatEstimatedDate(selectedLocation.expressDays);
 

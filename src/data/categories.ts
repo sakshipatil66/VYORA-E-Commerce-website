@@ -382,6 +382,36 @@ const normalizeSearchText = (value: string) =>
   value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
     .replace(/[^a-z0-9]+/g, ' ').trim();
 
+const editDistanceWithin = (left: string, right: string, maxDistance: number): boolean => {
+  if (Math.abs(left.length - right.length) > maxDistance) return false;
+  let previous = Array.from({ length: right.length + 1 }, (_, index) => index);
+  for (let row = 1; row <= left.length; row += 1) {
+    const current = [row];
+    let rowMinimum = row;
+    for (let column = 1; column <= right.length; column += 1) {
+      const value = Math.min(
+        current[column - 1] + 1,
+        previous[column] + 1,
+        previous[column - 1] + (left[row - 1] === right[column - 1] ? 0 : 1)
+      );
+      current[column] = value;
+      rowMinimum = Math.min(rowMinimum, value);
+    }
+    if (rowMinimum > maxDistance) return false;
+    previous = current;
+  }
+  return previous[right.length] <= maxDistance;
+};
+
+const corpusContainsSearchToken = (corpus: string, token: string): boolean => {
+  if (corpus.includes(token)) return true;
+  if (token.length < 4) return false;
+  const maxDistance = token.length >= 9 ? 2 : 1;
+  return corpus.split(/\s+/).some((word) =>
+    word.length >= 4 && editDistanceWithin(token, word, maxDistance)
+  );
+};
+
 const CATEGORY_UMBRELLA_TERMS: Partial<Record<CategoryId, string[]>> = {
   all: ['all', 'marketplace'],
   fashion: ['fashion', 'couture', 'clothing', 'apparel', 'ethnic', 'garment', 'wear'],
@@ -494,10 +524,10 @@ export function searchProducts(products: Product[], rawQuery: string): Product[]
     );
     const searchableCorpus = normalizeSearchText(`${coreSearchableCorpus} ${descLower}`);
 
-    const allTokensMatch = tokens.every((token) => searchableCorpus.includes(token));
+    const allTokensMatch = tokens.every((token) => corpusContainsSearchToken(searchableCorpus, token));
 
     if (!allTokensMatch) continue;
-    const coreMatch = tokens.every((token) => coreSearchableCorpus.includes(token));
+    const coreMatch = tokens.every((token) => corpusContainsSearchToken(coreSearchableCorpus, token));
 
     let score = 0;
     if (nameLower === cleaned) score += 160;
@@ -517,6 +547,7 @@ export function searchProducts(products: Product[], rawQuery: string): Product[]
       if (taglineLower.includes(tok)) score += 12;
       if (catUmbrella.includes(tok)) score += 10;
       if (descLower.includes(tok)) score += 6;
+      if (!searchableCorpus.includes(tok) && corpusContainsSearchToken(searchableCorpus, tok)) score += 4;
     }
 
     if (p.featured || p.isBestseller) score += 3;

@@ -10,15 +10,15 @@ Set `ADMIN_EMAIL` in `.env` if an account registered with that email should rece
 
 The CMS is available at `/admin` (for example, `http://localhost:3000/admin`). Set `ADMIN_EMAIL` in the project `.env`, restart the API, then create an account using that exact email address or sign in to its existing account. On API startup, the configured account is promoted to the administrator role; all CMS API operations also verify the authenticated server-side session and role. Do not expose `ADMIN_EMAIL`-related credentials or session cookies in frontend configuration.
 
-The admin workspace includes live sales, customer, order and stock metrics; product, inventory, order-status, category and coupon management; and responsive order detail views. Product and category edits use the same SQLite-backed catalog served to the storefront. Product image uploads are limited to 350 KB per file and stored with the product record in SQLite; for larger catalogs, use durable image hosting and enter its image URLs instead.
+The admin workspace includes live sales, customer, order and stock metrics; product, inventory, order-status, category and coupon management; a Story Builder; a Content Manager; and a centralized Media Library. The Media Library accepts JPG, PNG, WebP, and AVIF images up to 10 MB each, stores the image bytes and metadata in the existing SQLite database, and serves stable `/api/media/:id` URLs. Product image uploads remain stored with their product records in SQLite.
 
-Start the API and frontend together from this project directory:
+Start the local application from this project directory:
 
 ```text
 npm run dev
 ```
 
-This runs the Express API on `http://127.0.0.1:3001` and the frontend on `http://localhost:3000`. Vite proxies `/api` requests to the API. If either process exits, the other is stopped as well. The API creates `data/vyora.sqlite` on first startup and seeds missing catalog and coupon data. Keep the `data` directory backed up for persistent store data. No separate API command or `.env` copy is needed to start local COD checkout.
+`npm run dev` runs Express with Vite's development middleware mounted in the same server, at `http://localhost:3000` by default. API and frontend requests therefore share one origin; this command does not start separate API and frontend processes or use a Vite `/api` proxy. Set `PORT` or `API_PORT` to change the local server port. The API creates `data/vyora.sqlite` on first startup and seeds missing catalog and coupon data. Keep the `data` directory backed up for persistent store data. No separate API command or `.env` copy is needed to start local COD checkout.
 
 Run `npm run lint` and `npm run build` to validate the frontend and TypeScript sources.
 
@@ -30,4 +30,4 @@ Order records, payment state, and fulfillment status are stored in SQLite. Custo
 
 Netlify serves the Vite frontend and forwards `/api/*` through the `netlify/functions/api.mjs` proxy. The production proxy defaults to `https://vyora-api-b2xc.onrender.com`; set the Netlify runtime environment variable `VYORA_API_URL` to another HTTPS API origin only if the Render service URL changes. Do not add `/api` to that origin. The proxy forwards API requests and session cookies, so frontend calls remain same-origin and do not require browser CORS access to Render. Do not put backend credentials in `VITE_*` variables.
 
-The Express service listens on `0.0.0.0` and uses the hosting platform's `PORT` value, falling back to `API_PORT` or `3001` for local development. For Render, use Node.js 22.5 or newer because the API depends on the built-in `node:sqlite` module. Attach a persistent Render disk and set `DATABASE_PATH` to a file on that disk if database records must survive service restarts or redeployments; the default filesystem may be ephemeral.
+The Express service listens on `0.0.0.0` and uses the hosting platform's `PORT` value, falling back to `API_PORT` or `3000` for local development. For Render, use Node.js 22.5 or newer because the API depends on the built-in `node:sqlite` module. Attach a persistent Render disk and set `DATABASE_PATH` to a file on that disk so database records and Media Library image bytes survive service restarts or redeployments; the default filesystem may be ephemeral. Media assets share the SQLite database and disk lifecycle, so production uploads should only be enabled after the persistent disk is attached.
